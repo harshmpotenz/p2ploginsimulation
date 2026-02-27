@@ -101,7 +101,7 @@ async function createOrFindCustomer(email, firstName, lastName, password) {
   return createRes.data.customer;
 }
 async function shopifyServerLogin(email, password) {
-  // Step 1: GET login page (auto-follow redirects)
+  // Step 1: GET login page to obtain session cookies
   const loginPageRes = await fetch(`https://${SHOPIFY_STORE}/account/login`, {
     headers: {
       "User-Agent": "Mozilla/5.0",
@@ -109,44 +109,33 @@ async function shopifyServerLogin(email, password) {
     }
   });
 
-  const setCookies1 = loginPageRes.headers.raw()["set-cookie"] || [];
-  const html = await loginPageRes.text();
+  const initialCookies = loginPageRes.headers.raw()["set-cookie"] || [];
+  const cookieHeader = initialCookies.map(c => c.split(";")[0]).join("; ");
 
-  console.log("LOGIN PAGE STATUS:", loginPageRes.status);
-
-  const tokenMatch = html.match(/name="authenticity_token".*?value="([^"]+)"/);
-
-  if (!tokenMatch) {
-    console.log("LOGIN HTML:", html.substring(0, 1000));
-    throw new Error("CSRF token not found");
-  }
-
-  const authenticityToken = tokenMatch[1];
-
-  const cookieHeader1 = setCookies1.map(c => c.split(";")[0]).join("; ");
-
-  // Step 2: POST login
+  // Step 2: POST login WITHOUT authenticity_token
   const body = new URLSearchParams();
   body.append("form_type", "customer_login");
   body.append("utf8", "✓");
+  body.append("return_to", "/account");
   body.append("customer[email]", email);
   body.append("customer[password]", password);
-  body.append("authenticity_token", authenticityToken);
 
   const loginRes = await fetch(`https://${SHOPIFY_STORE}/account/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
       "User-Agent": "Mozilla/5.0",
-      "Cookie": cookieHeader1
+      "Cookie": cookieHeader
     },
     body,
     redirect: "manual"
   });
 
-  const setCookies2 = loginRes.headers.raw()["set-cookie"] || [];
+  const loginCookies = loginRes.headers.raw()["set-cookie"] || [];
 
-  return setCookies2.map(c =>
+  console.log("LOGIN RESPONSE STATUS:", loginRes.status);
+
+  return loginCookies.map(c =>
     c.replace(/Domain=[^;]+/i, `Domain=.${SHOPIFY_STORE}`)
   );
 }
