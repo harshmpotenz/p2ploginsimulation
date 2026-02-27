@@ -12,7 +12,7 @@ const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 const SHOPIFY_ADMIN_TOKEN = process.env.SHOPIFY_ADMIN_TOKEN;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const BASE_URL = "https://auth.yoursite.com"; // your EC2 domain
+const BASE_URL = "https://p2ploginsimulation.onrender.com"; // your EC2 domain
 
 // Dummy in-memory store (replace with DB)
 const userStore = new Map(); // email -> { shopifyCustomerId, password }
