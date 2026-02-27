@@ -101,25 +101,25 @@ async function createOrFindCustomer(email, firstName, lastName, password) {
   return createRes.data.customer;
 }
 async function shopifyServerLogin(email, password) {
-  // Step 1: GET login page
+  // Step 1: GET login page (auto-follow redirects)
   const loginPageRes = await fetch(`https://${SHOPIFY_STORE}/account/login`, {
-  method: "GET",
-  headers: {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-    "Accept": "text/html",
-  },
-  redirect: "manual"
-});
+    headers: {
+      "User-Agent": "Mozilla/5.0",
+      "Accept": "text/html",
+    }
+  });
 
   const setCookies1 = loginPageRes.headers.raw()["set-cookie"] || [];
-const html = await loginPageRes.text();
+  const html = await loginPageRes.text();
 
-console.log("STATUS:", loginPageRes.status);
-console.log("HEADERS:", loginPageRes.headers.raw());
-console.log("HTML START:", html.substring(0, 1000));
-  // Extract authenticity_token (simple regex, may need adjustment)
-const tokenMatch = html.match(/name="authenticity_token".*?value="([^"]+)"/);
-  if (!tokenMatch) throw new Error("CSRF token not found");
+  console.log("LOGIN PAGE STATUS:", loginPageRes.status);
+
+  const tokenMatch = html.match(/name="authenticity_token".*?value="([^"]+)"/);
+
+  if (!tokenMatch) {
+    console.log("LOGIN HTML:", html.substring(0, 1000));
+    throw new Error("CSRF token not found");
+  }
 
   const authenticityToken = tokenMatch[1];
 
@@ -137,6 +137,7 @@ const tokenMatch = html.match(/name="authenticity_token".*?value="([^"]+)"/);
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": "Mozilla/5.0",
       "Cookie": cookieHeader1
     },
     body,
@@ -145,11 +146,9 @@ const tokenMatch = html.match(/name="authenticity_token".*?value="([^"]+)"/);
 
   const setCookies2 = loginRes.headers.raw()["set-cookie"] || [];
 
-  // Return cookies to forward to browser
-  return setCookies2.map(c => {
-    // Make sure domain/path are correct for your store
-    return c.replace(/Domain=[^;]+;/i, `Domain=.${SHOPIFY_STORE};`);
-  });
+  return setCookies2.map(c =>
+    c.replace(/Domain=[^;]+/i, `Domain=.${SHOPIFY_STORE}`)
+  );
 }
 app.listen(3000, () => {
   console.log("Auth server running on port 3000");
