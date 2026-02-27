@@ -103,15 +103,22 @@ async function createOrFindCustomer(email, firstName, lastName, password) {
 async function shopifyServerLogin(email, password) {
   // Step 1: GET login page
   const loginPageRes = await fetch(`https://${SHOPIFY_STORE}/account/login`, {
-    method: "GET",
-    redirect: "manual"
-  });
+  method: "GET",
+  headers: {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Accept": "text/html",
+  },
+  redirect: "manual"
+});
 
   const setCookies1 = loginPageRes.headers.raw()["set-cookie"] || [];
-  const html = await loginPageRes.text();
+const html = await loginPageRes.text();
 
+console.log("STATUS:", loginPageRes.status);
+console.log("HEADERS:", loginPageRes.headers.raw());
+console.log("HTML START:", html.substring(0, 1000));
   // Extract authenticity_token (simple regex, may need adjustment)
-  const tokenMatch = html.match(/name="authenticity_token" value="([^"]+)"/);
+const tokenMatch = html.match(/name="authenticity_token".*?value="([^"]+)"/);
   if (!tokenMatch) throw new Error("CSRF token not found");
 
   const authenticityToken = tokenMatch[1];
