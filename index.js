@@ -92,7 +92,9 @@ async function createOrFindCustomer(email, firstName, lastName, password) {
         last_name: lastName,
         password,
         password_confirmation: password,
-        verified_email: true
+        verified_email: true,
+        status  : "enabled"
+        
       }
     },
     { headers: { "X-Shopify-Access-Token": SHOPIFY_ADMIN_TOKEN } }
