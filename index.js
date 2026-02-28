@@ -15,7 +15,6 @@ const SHOPIFY_ADMIN_TOKEN = process.env.SHOPIFY_ADMIN_TOKEN;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const BASE_URL = process.env.BASE_URL || "https://p2ploginsimulation.onrender.com";
-const MULTIPASS_SECRET = process.env.SHOPIFY_MULTIPASS_SECRET;
 
 // Dummy in-memory store (replace with DB)
 const userStore = new Map(); // email -> { shopifyCustomerId, password }
@@ -60,17 +59,6 @@ app.get("/auth/google/callback", async (req, res) => {
   });
 
   const { email, given_name, family_name } = profileRes.data;
-
-  if (MULTIPASS_SECRET) {
-    const multipassUrl = buildMultipassUrl({
-      email,
-      firstName: given_name,
-      lastName: family_name,
-      returnTo: "/account"
-    });
-
-    return res.redirect(multipassUrl);
-  }
 
   // 1) Ensure Shopify customer exists
   let user = userStore.get(email);
@@ -157,6 +145,31 @@ function extractAuthenticityToken(html) {
   return null;
 }
 
+
+function parseHiddenInputsFromCustomerLoginForm(html) {
+  const formMatch = html.match(/<form[^>]*>[\s\S]*?<\/form>/gi) || [];
+  const customerForm = formMatch.find((formHtml) => /name=["']form_type["'][^>]*value=["']customer_login["']/i.test(formHtml) || /action=["'][^"']*\/account\/login[^"']*["']/i.test(formHtml));
+
+  if (!customerForm) {
+    return {};
+  }
+
+  const inputMatches = customerForm.match(/<input[^>]*>/gi) || [];
+  const hiddenInputs = {};
+
+  inputMatches.forEach((inputTag) => {
+    const type = inputTag.match(/type=["']([^"']+)["']/i)?.[1]?.toLowerCase();
+    const name = inputTag.match(/name=["']([^"']+)["']/i)?.[1];
+    const value = inputTag.match(/value=["']([^"']*)["']/i)?.[1] || "";
+
+    if ((type === "hidden" || name === "form_type" || name === "utf8") && name) {
+      hiddenInputs[name] = value;
+    }
+  });
+
+  return hiddenInputs;
+}
+
 function detectBotChallenge(html) {
   const challengeSignals = [
     "captcha",
@@ -173,42 +186,6 @@ function detectBotChallenge(html) {
 
 
 
-function toBase64Url(input) {
-  return Buffer.from(input)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-}
-
-function buildMultipassUrl({ email, firstName, lastName, returnTo = "/account" }) {
-  if (!MULTIPASS_SECRET) {
-    throw new Error("Missing SHOPIFY_MULTIPASS_SECRET for Multipass login");
-  }
-
-  const keyMaterial = crypto.createHash("sha256").update(MULTIPASS_SECRET).digest();
-  const encryptionKey = keyMaterial.subarray(0, 16);
-  const signatureKey = keyMaterial.subarray(16, 32);
-
-  const payload = {
-    email,
-    first_name: firstName,
-    last_name: lastName,
-    return_to: `https://${SHOPIFY_STORE}${returnTo}`,
-    created_at: new Date().toISOString()
-  };
-
-  const plaintext = Buffer.from(JSON.stringify(payload), "utf8");
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv("aes-128-cbc", encryptionKey, iv);
-  const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
-  const ciphertext = Buffer.concat([iv, encrypted]);
-
-  const signature = crypto.createHmac("sha256", signatureKey).update(ciphertext).digest();
-  const token = toBase64Url(Buffer.concat([ciphertext, signature]));
-
-  return `https://${SHOPIFY_STORE}/account/login/multipass/${token}`;
-}
 async function shopifyServerLogin(email, password) {
   // Step 1: GET login page to obtain session cookies and optional authenticity_token
   const loginPageRes = await fetch(`https://${SHOPIFY_STORE}/account/login`, {
@@ -222,30 +199,39 @@ async function shopifyServerLogin(email, password) {
   const initialCookies = loginPageRes.headers.raw()["set-cookie"] || [];
   const cookieHeader = initialCookies.map((cookie) => cookie.split(";")[0]).join("; ");
 
-  // Extract authenticity_token from HTML (if the theme renders one)
+  // Extract dynamic hidden inputs from HTML so legacy themes work without strict token assumptions
   const html = await loginPageRes.text();
-  const authenticityToken = extractAuthenticityToken(html);
 
-  if (!authenticityToken) {
-    if (detectBotChallenge(html)) {
-      throw new Error(
-        "Shopify login page appears to be protected by a bot challenge/CAPTCHA. Server-side login cannot continue until that protection is bypassed for this endpoint."
-      );
-    }
-
-    console.warn("No authenticity_token found on /account/login; attempting legacy login without token.");
+  if (detectBotChallenge(html)) {
+    throw new Error(
+      "Shopify login page appears to be protected by a bot challenge/CAPTCHA. Server-side login cannot continue until that protection is bypassed for this endpoint."
+    );
   }
 
-  // Step 2: POST login. On many legacy stores token may be optional.
+  const hiddenInputs = parseHiddenInputsFromCustomerLoginForm(html);
+  const authenticityToken = hiddenInputs.authenticity_token || extractAuthenticityToken(html);
+
+  // Step 2: POST login using hidden form fields found in the storefront markup
   const body = new URLSearchParams();
-  body.append("form_type", "customer_login");
-  body.append("utf8", "✓");
-  if (authenticityToken) {
+  Object.entries(hiddenInputs).forEach(([key, value]) => {
+    body.append(key, value);
+  });
+
+  if (!body.has("form_type")) {
+    body.append("form_type", "customer_login");
+  }
+
+  if (!body.has("utf8")) {
+    body.append("utf8", "✓");
+  }
+
+  if (authenticityToken && !body.has("authenticity_token")) {
     body.append("authenticity_token", authenticityToken);
   }
-  body.append("return_to", "/account");
-  body.append("customer[email]", email);
-  body.append("customer[password]", password);
+
+  body.set("return_to", "/account");
+  body.set("customer[email]", email);
+  body.set("customer[password]", password);
 
   const loginRes = await fetch(`https://${SHOPIFY_STORE}/account/login`, {
     method: "POST",
