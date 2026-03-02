@@ -14,7 +14,7 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const BASE_URL = "https://p2ploginsimulation.onrender.com"; // your EC2 domain
 
-// Dummy in-memory store (replace with DB)
+// Dummy in-memory store 
 const userStore = new Map(); // email -> { shopifyCustomerId, password }
 app.get("/auth/google", (req, res) => {
   const redirect = `https://accounts.google.com/o/oauth2/v2/auth?` +
@@ -110,66 +110,87 @@ async function createOrFindCustomer(email, firstName, lastName, password) {
 
 
 async function shopifyServerLogin(email, password) {
-  // Step 1: GET login page to obtain session cookies AND authenticity_token
+  console.log("Starting legacy Shopify login for:", email);
+
+  // Step 1: GET login page to obtain session cookies
   const loginPageRes = await fetch(`https://${SHOPIFY_STORE}/account/login`, {
     headers: {
-      "User-Agent": "Mozilla/5.0",
-      "Accept": "text/html",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.5",
     }
   });
 
   const initialCookies = loginPageRes.headers.raw()["set-cookie"] || [];
   const cookieHeader = initialCookies.map(c => c.split(";")[0]).join("; ");
+  
+  console.log("Initial cookies obtained:", initialCookies.length);
 
-  // ✅ Extract authenticity_token from the HTML
+  // Step 2: Extract token using enhanced detection
   const html = await loginPageRes.text();
-  const tokenMatch = html.match(/name="authenticity_token"\s+value="([^"]+)"/);
-  if (!tokenMatch) {
-    throw new Error("Could not find authenticity_token on Shopify login page");
+  let authenticityToken = await extractAuthenticityToken(html);
+
+  // Step 3: If no token found, try alternative approaches
+  if (!authenticityToken) {
+    console.log("No authenticity_token found. Trying alternative approaches...");
+    
+    // Try to get token from a different endpoint
+    authenticityToken = await tryAlternativeTokenExtraction(cookieHeader);
   }
-  const authenticityToken = tokenMatch[1];
 
-  console.log("Found authenticity_token:", authenticityToken);
+  // Step 4: Prepare login form data
+  const formData = new URLSearchParams();
+  formData.append("form_type", "customer_login");
+  formData.append("utf8", "✓");
+  
+  if (authenticityToken) {
+    formData.append("authenticity_token", authenticityToken);
+    console.log("Using authenticity_token:", authenticityToken.substring(0, 20) + "...");
+  }
+  
+  formData.append("return_url", "/account");
+  formData.append("customer[email]", email);
+  formData.append("customer[password]", password);
 
-  // Step 2: POST login WITH authenticity_token
-  const body = new URLSearchParams();
-  body.append("form_type", "customer_login");
-  body.append("utf8", "✓");
-  body.append("authenticity_token", authenticityToken); // ✅ added
-  body.append("return_to", "/account");
-  body.append("customer[email]", email);
-  body.append("customer[password]", password);
-
+  // Step 5: Submit login form
   const loginRes = await fetch(`https://${SHOPIFY_STORE}/account/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": "Mozilla/5.0",
-      "Referer": `https://${SHOPIFY_STORE}/account/login`, // ✅ added
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.5",
+      "Referer": `https://${SHOPIFY_STORE}/account/login`,
       "Cookie": cookieHeader
     },
-    body,
+    body: formData,
     redirect: "manual"
   });
 
-  console.log("LOGIN RESPONSE STATUS:", loginRes.status);
+  console.log("Login response status:", loginRes.status);
 
-  // ✅ A successful login returns 302 to /account, failed returns 302 to /account/login
+  // Step 6: Handle response
   const location = loginRes.headers.get("location");
   console.log("Redirect location:", location);
 
-  if (location && location.includes("/account/login")) {
-    throw new Error("Shopify login failed — wrong credentials or account issue");
+  // Check for successful login indicators
+  const setCookie = loginRes.headers.raw()["set-cookie"] || [];
+  console.log("Set-Cookie headers:", setCookie.length);
+
+  // Success criteria: redirect to /account (not /account/login)
+  if (location && location.includes("/account") && !location.includes("/account/login")) {
+    console.log("Login successful!");
+    return setCookie;
   }
 
-  const loginCookies = loginRes.headers.raw()["set-cookie"] || [];
-
-return loginCookies.map(c => {
-  if (c.toLowerCase().includes("domain=")) {
-    return c.replace(/Domain=[^;]+/i, `Domain=.${SHOPIFY_STORE}`);
+  // If we got cookies but no redirect, might still be successful
+  if (setCookie.length > 0 && (!location || location.includes("/account"))) {
+    console.log("Login appears successful (cookies received)");
+    return setCookie;
   }
-  return c + `; Domain=.${SHOPIFY_STORE}`;
-});
+
+  // Login failed
+  throw new Error(`Shopify login failed. Status: ${loginRes.status}, Location: ${location}`);
 }
 app.listen(3000, () => {
   console.log("Auth server running on port 3000");
