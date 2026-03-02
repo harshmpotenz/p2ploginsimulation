@@ -178,13 +178,15 @@ function detectBotChallenge(html) {
 
 
 async function shopifyServerLogin(email, password) {
-  // Step 1: GET login page to obtain session cookies and optional authenticity_token
+  console.log("Starting legacy Shopify login for:", email);
+
+  // Step 1: GET login page to obtain session cookies
   const loginPageRes = await fetch(`https://${SHOPIFY_STORE}/account/login`, {
     headers: {
-      "User-Agent": "Mozilla/5.0",
-      Accept: "text/html"
-    },
-    redirect: "manual"
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.5",
+    }
   });
 
   const initialCookies = loginPageRes.headers.raw()["set-cookie"] || [];
