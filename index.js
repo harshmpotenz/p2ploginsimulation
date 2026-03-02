@@ -146,7 +146,6 @@ function extractAuthenticityToken(html) {
 }
 
 
-<<<<<<< HEAD
 async function shopifyServerLogin(email, password) {
   console.log("Starting legacy Shopify login for:", email);
 
@@ -156,26 +155,6 @@ async function shopifyServerLogin(email, password) {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
       "Accept-Language": "en-US,en;q=0.5",
-=======
-function parseHiddenInputsFromCustomerLoginForm(html) {
-  const formMatch = html.match(/<form[^>]*>[\s\S]*?<\/form>/gi) || [];
-  const customerForm = formMatch.find((formHtml) => /name=["']form_type["'][^>]*value=["']customer_login["']/i.test(formHtml) || /action=["'][^"']*\/account\/login[^"']*["']/i.test(formHtml));
-
-  if (!customerForm) {
-    return {};
-  }
-
-  const inputMatches = customerForm.match(/<input[^>]*>/gi) || [];
-  const hiddenInputs = {};
-
-  inputMatches.forEach((inputTag) => {
-    const type = inputTag.match(/type=["']([^"']+)["']/i)?.[1]?.toLowerCase();
-    const name = inputTag.match(/name=["']([^"']+)["']/i)?.[1];
-    const value = inputTag.match(/value=["']([^"']*)["']/i)?.[1] || "";
-
-    if ((type === "hidden" || name === "form_type" || name === "utf8") && name) {
-      hiddenInputs[name] = value;
->>>>>>> 7dad952ce2da3a385e4ba412e0c18bf0640d9732
     }
   });
 
@@ -209,7 +188,6 @@ async function shopifyServerLogin(email, password) {
   });
 
   const initialCookies = loginPageRes.headers.raw()["set-cookie"] || [];
-<<<<<<< HEAD
   const cookieHeader = initialCookies.map(c => c.split(";")[0]).join("; ");
   
   console.log("Initial cookies obtained:", initialCookies.length);
@@ -239,66 +217,22 @@ async function shopifyServerLogin(email, password) {
   formData.append("return_url", "/account");
   formData.append("customer[email]", email);
   formData.append("customer[password]", password);
-=======
-  const cookieHeader = initialCookies.map((cookie) => cookie.split(";")[0]).join("; ");
-
-  // Extract dynamic hidden inputs from HTML so legacy themes work without strict token assumptions
-  const html = await loginPageRes.text();
-
-  if (detectBotChallenge(html)) {
-    throw new Error(
-      "Shopify login page appears to be protected by a bot challenge/CAPTCHA. Server-side login cannot continue until that protection is bypassed for this endpoint."
-    );
-  }
-
-  const hiddenInputs = parseHiddenInputsFromCustomerLoginForm(html);
-  const authenticityToken = hiddenInputs.authenticity_token || extractAuthenticityToken(html);
-
-  // Step 2: POST login using hidden form fields found in the storefront markup
-  const body = new URLSearchParams();
-  Object.entries(hiddenInputs).forEach(([key, value]) => {
-    body.append(key, value);
-  });
-
-  if (!body.has("form_type")) {
-    body.append("form_type", "customer_login");
-  }
-
-  if (!body.has("utf8")) {
-    body.append("utf8", "✓");
-  }
-
-  if (authenticityToken && !body.has("authenticity_token")) {
-    body.append("authenticity_token", authenticityToken);
-  }
-
-  body.set("return_to", "/account");
-  body.set("customer[email]", email);
-  body.set("customer[password]", password);
->>>>>>> 7dad952ce2da3a385e4ba412e0c18bf0640d9732
 
   // Step 5: Submit login form
   const loginRes = await fetch(`https://${SHOPIFY_STORE}/account/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
-<<<<<<< HEAD
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
       "Accept-Language": "en-US,en;q=0.5",
       "Referer": `https://${SHOPIFY_STORE}/account/login`,
       "Cookie": cookieHeader
-=======
-      "User-Agent": "Mozilla/5.0",
-      Referer: `https://${SHOPIFY_STORE}/account/login`,
-      Cookie: cookieHeader
->>>>>>> 7dad952ce2da3a385e4ba412e0c18bf0640d9732
     },
     body: formData,
     redirect: "manual"
   });
 
-<<<<<<< HEAD
   console.log("Login response status:", loginRes.status);
 
   // Step 6: Handle response
@@ -323,25 +257,6 @@ async function shopifyServerLogin(email, password) {
 
   // Login failed
   throw new Error(`Shopify login failed. Status: ${loginRes.status}, Location: ${location}`);
-=======
-  // A successful login normally redirects away from /account/login
-  const location = loginRes.headers.get("location") || "";
-  if (location.includes("/account/login")) {
-    throw new Error("Shopify login failed — still redirected to /account/login (credentials, account state, or theme challenge issue)");
-  }
-
-  const loginCookies = loginRes.headers.raw()["set-cookie"] || [];
-  if (loginCookies.length === 0) {
-    throw new Error("Shopify login did not return session cookies. Check if your theme/apps block server-side logins.");
-  }
-
-  return loginCookies.map((cookie) => {
-    if (cookie.toLowerCase().includes("domain=")) {
-      return cookie.replace(/Domain=[^;]+/i, `Domain=.${SHOPIFY_STORE}`);
-    }
-    return `${cookie}; Domain=.${SHOPIFY_STORE}`;
-  });
->>>>>>> 7dad952ce2da3a385e4ba412e0c18bf0640d9732
 }
 
 app.listen(3000, () => {
