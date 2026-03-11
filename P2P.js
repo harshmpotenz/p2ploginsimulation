@@ -31,6 +31,10 @@ const appState = {
   newimagetop: 0,
   border: 0,
   selectedEdgeType: "FitToEdge",
+  cropState: {
+    isCropped: false,
+    backup: null
+  }
   
 };
 // ============================
@@ -1585,6 +1589,8 @@ appState.uploadimgsize = +(file.size / (1024 * 1024)).toFixed(2);
 
       fabric.Image.fromURL(f.target.result, function (fabricImg) {
         appState.uploadedImage = fabricImg;
+        appState.cropState = { isCropped: false, backup: null };
+        updateCropButtonState();
 
         const imgfileWElement = document.getElementById("img-file-w");
         const imgfileHElement = document.getElementById("img-file-h");
@@ -5068,6 +5074,106 @@ if (!appState.uploadedImageForBlackEdge) {
 }
 
 
+function updateCropButtonState() {
+  const cropBtn = document.getElementById("crop-toggle-image");
+  if (!cropBtn) return;
+
+  const isCropped = Boolean(appState.cropState?.isCropped);
+  cropBtn.classList.toggle("active", isCropped);
+  cropBtn.setAttribute("title", isCropped ? "Show full image" : "Crop image");
+}
+
+function getClipBounds() {
+  if (appState.clipPath && typeof appState.clipPath.getBoundingRect === "function") {
+    return appState.clipPath.getBoundingRect(true);
+  }
+
+  if (appState.innerCanvas && typeof appState.innerCanvas.getBoundingRect === "function") {
+    return appState.innerCanvas.getBoundingRect(true);
+  }
+
+  return null;
+}
+
+function toggleImageCrop() {
+  const img = appState.uploadedImage;
+  if (!img) return;
+
+  if (img.angle && Math.abs(img.angle % 360) !== 0) {
+    alert("Please reset image rotation before using crop.");
+    return;
+  }
+
+  if (!appState.cropState.isCropped) {
+    const clipBounds = getClipBounds();
+    if (!clipBounds) return;
+
+    const imgBounds = img.getBoundingRect(true);
+
+    const intersectLeft = Math.max(imgBounds.left, clipBounds.left);
+    const intersectTop = Math.max(imgBounds.top, clipBounds.top);
+    const intersectRight = Math.min(imgBounds.left + imgBounds.width, clipBounds.left + clipBounds.width);
+    const intersectBottom = Math.min(imgBounds.top + imgBounds.height, clipBounds.top + clipBounds.height);
+
+    if (intersectRight <= intersectLeft || intersectBottom <= intersectTop || !img.scaleX || !img.scaleY) {
+      return;
+    }
+
+    appState.cropState.backup = {
+      cropX: img.cropX || 0,
+      cropY: img.cropY || 0,
+      width: img.width,
+      height: img.height,
+      left: img.left,
+      top: img.top,
+      scaleX: img.scaleX,
+      scaleY: img.scaleY
+    };
+
+    const visibleW = intersectRight - intersectLeft;
+    const visibleH = intersectBottom - intersectTop;
+
+    const nextCropX = (img.cropX || 0) + (intersectLeft - imgBounds.left) / img.scaleX;
+    const nextCropY = (img.cropY || 0) + (intersectTop - imgBounds.top) / img.scaleY;
+
+    img.set({
+      cropX: nextCropX,
+      cropY: nextCropY,
+      width: visibleW / img.scaleX,
+      height: visibleH / img.scaleY,
+      left: intersectLeft + visibleW / 2,
+      top: intersectTop + visibleH / 2
+    });
+
+    appState.cropState.isCropped = true;
+  } else {
+    const backup = appState.cropState.backup;
+    if (!backup) return;
+
+    img.set({
+      cropX: backup.cropX,
+      cropY: backup.cropY,
+      width: backup.width,
+      height: backup.height,
+      left: backup.left,
+      top: backup.top,
+      scaleX: backup.scaleX,
+      scaleY: backup.scaleY
+    });
+
+    appState.cropState.isCropped = false;
+    appState.cropState.backup = null;
+  }
+
+  img.setCoords();
+  updateMovementConstraints();
+  updatePositionInfo();
+  canvas.requestRenderAll();
+  updateCropButtonState();
+}
+
+
+
 
 function setWrap(){
   value = sessionStorage.getItem("selectedWrap");
@@ -5110,6 +5216,15 @@ document.getElementById("center-image").addEventListener("click", () => {
   centerImage();
   updatePositionInfo();
 });
+
+const cropToggleBtn = document.getElementById("crop-toggle-image");
+if (cropToggleBtn) {
+  cropToggleBtn.addEventListener("click", () => {
+    toggleImageCrop();
+  });
+}
+
+updateCropButtonState();
 
 window.getLocalStorage1Day = getLocalStorage1Day;
 window.setLocalStorage1Day = setLocalStorage1Day;
