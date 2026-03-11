@@ -50,6 +50,29 @@ class CanvasZoom {
         
         this.init();
     }
+
+    /**
+     * Get logical canvas dimensions (not retina/backstore size).
+     * Using backstore width/height causes blurry/stretched scaling on high-DPI screens.
+     */
+    getCanvasDimensions() {
+        if (this.canvas && typeof this.canvas.getWidth === 'function' && typeof this.canvas.getHeight === 'function') {
+            const w = this.canvas.getWidth();
+            const h = this.canvas.getHeight();
+            if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+                return { canvasWidth: w, canvasHeight: h };
+            }
+        }
+
+        if (this.lowerCanvas) {
+            const rect = this.lowerCanvas.getBoundingClientRect();
+            const w = rect.width || this.lowerCanvas.clientWidth || this.lowerCanvas.width || 400;
+            const h = rect.height || this.lowerCanvas.clientHeight || this.lowerCanvas.height || 400;
+            return { canvasWidth: w, canvasHeight: h };
+        }
+
+        return { canvasWidth: 400, canvasHeight: 400 };
+    }
     
     init() {
         this.setupEventListeners();
@@ -70,19 +93,8 @@ class CanvasZoom {
      */
     calculateAndApplyOptimalZoom() {
         try {
-            // Get canvas dimensions
-            let canvasWidth, canvasHeight;
-            
-            if (this.canvas && this.canvas.width && this.canvas.height) {
-                canvasWidth = this.canvas.width;
-                canvasHeight = this.canvas.height;
-            } else if (this.lowerCanvas) {
-                canvasWidth = this.lowerCanvas.width || 400;
-                canvasHeight = this.lowerCanvas.height || 400;
-            } else {
-                canvasWidth = 400;
-                canvasHeight = 400;
-            }
+            // Get logical canvas dimensions
+            const { canvasWidth, canvasHeight } = this.getCanvasDimensions();
             
             // Get container dimensions
             const containerRect = this.container.getBoundingClientRect();
@@ -141,19 +153,8 @@ class CanvasZoom {
      */
     calculateAndApplyMatchingZoom() {
         try {
-            // Get canvas dimensions
-            let canvasWidth, canvasHeight;
-            
-            if (this.canvas && this.canvas.width && this.canvas.height) {
-                canvasWidth = this.canvas.width;
-                canvasHeight = this.canvas.height;
-            } else if (this.lowerCanvas) {
-                canvasWidth = this.lowerCanvas.width || 400;
-                canvasHeight = this.lowerCanvas.height || 400;
-            } else {
-                canvasWidth = 400;
-                canvasHeight = 400;
-            }
+            // Get logical canvas dimensions
+            const { canvasWidth, canvasHeight } = this.getCanvasDimensions();
             
             // Get container dimensions
             const containerRect = this.container.getBoundingClientRect();
@@ -208,19 +209,8 @@ class CanvasZoom {
      */
     calculateAndApplyContainerBasedZoom() {
         try {
-            // Get canvas dimensions
-            let canvasWidth, canvasHeight;
-            
-            if (this.canvas && this.canvas.width && this.canvas.height) {
-                canvasWidth = this.canvas.width;
-                canvasHeight = this.canvas.height;
-            } else if (this.lowerCanvas) {
-                canvasWidth = this.lowerCanvas.width || 400;
-                canvasHeight = this.lowerCanvas.height || 400;
-            } else {
-                canvasWidth = 400;
-                canvasHeight = 400;
-            }
+            // Get logical canvas dimensions
+            const { canvasWidth, canvasHeight } = this.getCanvasDimensions();
             
             // Get container dimensions
             const containerRect = this.container.getBoundingClientRect();
@@ -271,19 +261,8 @@ class CanvasZoom {
      */
     calculateAndApplyFillZoom() {
         try {
-            // Get canvas dimensions
-            let canvasWidth, canvasHeight;
-            
-            if (this.canvas && this.canvas.width && this.canvas.height) {
-                canvasWidth = this.canvas.width;
-                canvasHeight = this.canvas.height;
-            } else if (this.lowerCanvas) {
-                canvasWidth = this.lowerCanvas.width || 400;
-                canvasHeight = this.lowerCanvas.height || 400;
-            } else {
-                canvasWidth = 400;
-                canvasHeight = 400;
-            }
+            // Get logical canvas dimensions
+            const { canvasWidth, canvasHeight } = this.getCanvasDimensions();
             
             // Get container dimensions
             const containerRect = this.container.getBoundingClientRect();
@@ -327,19 +306,8 @@ class CanvasZoom {
      */
     calculateAndApplySmartZoom() {
         try {
-            // Get canvas dimensions
-            let canvasWidth, canvasHeight;
-            
-            if (this.canvas && this.canvas.width && this.canvas.height) {
-                canvasWidth = this.canvas.width;
-                canvasHeight = this.canvas.height;
-            } else if (this.lowerCanvas) {
-                canvasWidth = this.lowerCanvas.width || 400;
-                canvasHeight = this.lowerCanvas.height || 400;
-            } else {
-                canvasWidth = 400;
-                canvasHeight = 400;
-            }
+            // Get logical canvas dimensions
+            const { canvasWidth, canvasHeight } = this.getCanvasDimensions();
             
             // Get container dimensions
             const containerRect = this.container.getBoundingClientRect();
@@ -416,8 +384,7 @@ class CanvasZoom {
         const containerWidth = containerRect.width;
         const containerHeight = containerRect.height;
         
-        const canvasWidth = this.canvas?.width || this.lowerCanvas?.width || 400;
-        const canvasHeight = this.canvas?.height || this.lowerCanvas?.height || 400;
+        const { canvasWidth, canvasHeight } = this.getCanvasDimensions();
         
         const scaledWidth = canvasWidth * this.scale;
         const scaledHeight = canvasHeight * this.scale;
@@ -468,8 +435,7 @@ class CanvasZoom {
             
             // Apply custom padding if different from default
             if (paddingPercent !== 0.9) {
-                const canvasWidth = this.canvas?.width || this.lowerCanvas?.width || 400;
-                const canvasHeight = this.canvas?.height || this.lowerCanvas?.height || 400;
+                const { canvasWidth, canvasHeight } = this.getCanvasDimensions();
                 const containerRect = this.container.getBoundingClientRect();
                 
                 // Adjust scale with custom padding
@@ -1017,15 +983,39 @@ class CanvasZoom {
     }
     
     updateTransform() {
-        const transform = `translate(${this.offsetX}px, ${this.offsetY}px) scale(${this.scale})`;
-        
-        // Apply transform to both canvases
-        this.lowerCanvas.style.transform = transform;
-        this.upperCanvas.style.transform = transform;
-        
-        // Update transform-origin
-        this.lowerCanvas.style.transformOrigin = '0 0';
-        this.upperCanvas.style.transformOrigin = '0 0';
+        // Snap to device pixels to reduce blur from sub-pixel translations.
+        const dpr = window.devicePixelRatio || 1;
+        const snappedOffsetX = Math.round(this.offsetX * dpr) / dpr;
+        const snappedOffsetY = Math.round(this.offsetY * dpr) / dpr;
+        const snappedScale = Math.round(this.scale * 1000) / 1000;
+
+        // Prefer Fabric viewport transform for crisp rendering.
+        if (this.canvas && typeof this.canvas.setViewportTransform === 'function') {
+            this.canvas.setViewportTransform([snappedScale, 0, 0, snappedScale, snappedOffsetX, snappedOffsetY]);
+            this.canvas.requestRenderAll();
+
+            // Clear legacy CSS transforms if previously applied.
+            if (this.lowerCanvas) {
+                this.lowerCanvas.style.transform = 'none';
+                this.lowerCanvas.style.transformOrigin = '0 0';
+            }
+            if (this.upperCanvas) {
+                this.upperCanvas.style.transform = 'none';
+                this.upperCanvas.style.transformOrigin = '0 0';
+            }
+            return;
+        }
+
+        // Fallback for non-Fabric usage.
+        const transform = `translate3d(${snappedOffsetX}px, ${snappedOffsetY}px, 0) scale(${snappedScale})`;
+        if (this.lowerCanvas) {
+            this.lowerCanvas.style.transform = transform;
+            this.lowerCanvas.style.transformOrigin = '0 0';
+        }
+        if (this.upperCanvas) {
+            this.upperCanvas.style.transform = transform;
+            this.upperCanvas.style.transformOrigin = '0 0';
+        }
     }
     
     // Utility methods with tooltips - MODIFIED for centered zoom
