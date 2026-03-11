@@ -33,7 +33,9 @@ const appState = {
   selectedEdgeType: "FitToEdge",
   cropState: {
     isCropped: false,
-    backup: null
+    backup: null,
+    isSelecting: false,
+    selectionRect: null
   }
   
 };
@@ -831,6 +833,12 @@ switch (sortedSize) {
 }
 }
 
+  if (!Number.isFinite(innerPadding)) {
+    innerPadding = 0;
+  }
+
+  appState.innerPadding = innerPadding;
+  appState.borderSize = innerPadding;
   appState.innerWidth = width - innerPadding * 2;
   appState.innerHeight = height - innerPadding * 2;
 
@@ -1588,8 +1596,9 @@ appState.uploadimgsize = +(file.size / (1024 * 1024)).toFixed(2);
       }
 
       fabric.Image.fromURL(f.target.result, function (fabricImg) {
+        cleanupCropSelection();
         appState.uploadedImage = fabricImg;
-        appState.cropState = { isCropped: false, backup: null };
+        appState.cropState = { isCropped: false, backup: null, isSelecting: false, selectionRect: null };
         updateCropButtonState();
 
         const imgfileWElement = document.getElementById("img-file-w");
@@ -2302,7 +2311,10 @@ if (shouldDisableSizes) {
         if (imgfileHElement) imgfileHElement.textContent = tempImg.height;
 
         fabric.Image.fromURL(sessionImageData1, function(img) {
+          cleanupCropSelection();
           appState.uploadedImage = img;
+          appState.cropState = { isCropped: false, backup: null, isSelecting: false, selectionRect: null };
+          updateCropButtonState();
           appState.uploadedImage.set({
             selectable: true,
             hasBorders: false,
@@ -3197,7 +3209,10 @@ formData.append("page_url", currentPageUrl);
       canvas.clear();
       canvas.setBackgroundColor("#ffffff", canvas.renderAll.bind(canvas));
 
+      cleanupCropSelection();
       appState.uploadedImage = img;
+      appState.cropState = { isCropped: false, backup: null, isSelecting: false, selectionRect: null };
+      updateCropButtonState();
       appState.uploadedImage.set({
         selectable: true,
         hasBorders: false,
@@ -5079,8 +5094,12 @@ function updateCropButtonState() {
   if (!cropBtn) return;
 
   const isCropped = Boolean(appState.cropState?.isCropped);
-  cropBtn.classList.toggle("active", isCropped);
-  cropBtn.setAttribute("title", isCropped ? "Show full image" : "Crop image");
+  const isSelecting = Boolean(appState.cropState?.isSelecting);
+  cropBtn.classList.toggle("active", isCropped || isSelecting);
+  cropBtn.setAttribute(
+    "title",
+    isSelecting ? "Apply crop" : (isCropped ? "Show full image" : "Crop image")
+  );
 }
 
 function getClipBounds() {
@@ -5092,7 +5111,211 @@ function getClipBounds() {
     return appState.innerCanvas.getBoundingRect(true);
   }
 
+  const canvasWidth = typeof canvas?.getWidth === "function" ? canvas.getWidth() : canvas?.width;
+  const canvasHeight = typeof canvas?.getHeight === "function" ? canvas.getHeight() : canvas?.height;
+  if (!Number.isFinite(canvasWidth) || !Number.isFinite(canvasHeight)) {
+    return null;
+  }
+
+  const innerWidth = Number(appState.innerWidth);
+  const innerHeight = Number(appState.innerHeight);
+  if (Number.isFinite(innerWidth) && Number.isFinite(innerHeight) && innerWidth > 0 && innerHeight > 0) {
+    return {
+      left: (canvasWidth - innerWidth) / 2,
+      top: (canvasHeight - innerHeight) / 2,
+      width: innerWidth,
+      height: innerHeight
+    };
+  }
+
+  const padding = Number(appState.innerPadding ?? appState.borderSize ?? 0);
+  if (Number.isFinite(padding) && padding >= 0 && canvasWidth > padding * 2 && canvasHeight > padding * 2) {
+    return {
+      left: padding,
+      top: padding,
+      width: canvasWidth - padding * 2,
+      height: canvasHeight - padding * 2
+    };
+  }
+
   return null;
+}
+
+function cleanupCropSelection() {
+  const selectionRect = appState.cropState?.selectionRect;
+  if (selectionRect) {
+    canvas.remove(selectionRect);
+  }
+  appState.cropState.selectionRect = null;
+  appState.cropState.isSelecting = false;
+}
+
+function setImageInteractionEnabled(enabled) {
+  const img = appState.uploadedImage;
+  if (!img) return;
+
+  img.set({
+    selectable: enabled,
+    evented: enabled
+  });
+}
+
+function clampCropSelectionToImage(selectionRect, img) {
+  if (!selectionRect || !img) return;
+
+  const imgBounds = img.getBoundingRect(true);
+  if (!imgBounds || !imgBounds.width || !imgBounds.height) return;
+
+  let nextScaleX = selectionRect.scaleX || 1;
+  let nextScaleY = selectionRect.scaleY || 1;
+
+  const currentW = selectionRect.width * nextScaleX;
+  const currentH = selectionRect.height * nextScaleY;
+
+  if (currentW > imgBounds.width) {
+    nextScaleX = imgBounds.width / selectionRect.width;
+  }
+  if (currentH > imgBounds.height) {
+    nextScaleY = imgBounds.height / selectionRect.height;
+  }
+
+  selectionRect.set({
+    scaleX: nextScaleX,
+    scaleY: nextScaleY
+  });
+
+  const halfW = selectionRect.getScaledWidth() / 2;
+  const halfH = selectionRect.getScaledHeight() / 2;
+
+  const minLeft = imgBounds.left + halfW;
+  const maxLeft = imgBounds.left + imgBounds.width - halfW;
+  const minTop = imgBounds.top + halfH;
+  const maxTop = imgBounds.top + imgBounds.height - halfH;
+
+  selectionRect.set({
+    left: Math.min(Math.max(selectionRect.left, minLeft), maxLeft),
+    top: Math.min(Math.max(selectionRect.top, minTop), maxTop)
+  });
+
+  selectionRect.setCoords();
+}
+
+function startInteractiveCrop() {
+  const img = appState.uploadedImage;
+  if (!img) return;
+
+  cleanupCropSelection();
+
+  const imgBounds = img.getBoundingRect(true);
+  const clipBounds = getClipBounds();
+  const defaultBounds = clipBounds || imgBounds;
+
+  const intersectLeft = Math.max(imgBounds.left, defaultBounds.left);
+  const intersectTop = Math.max(imgBounds.top, defaultBounds.top);
+  const intersectRight = Math.min(imgBounds.left + imgBounds.width, defaultBounds.left + defaultBounds.width);
+  const intersectBottom = Math.min(imgBounds.top + imgBounds.height, defaultBounds.top + defaultBounds.height);
+
+  const initialLeft = intersectRight > intersectLeft ? intersectLeft : imgBounds.left;
+  const initialTop = intersectBottom > intersectTop ? intersectTop : imgBounds.top;
+  const initialWidth = intersectRight > intersectLeft ? (intersectRight - intersectLeft) : imgBounds.width;
+  const initialHeight = intersectBottom > intersectTop ? (intersectBottom - intersectTop) : imgBounds.height;
+
+  const selectionRect = new fabric.Rect({
+    left: initialLeft + initialWidth / 2,
+    top: initialTop + initialHeight / 2,
+    originX: "center",
+    originY: "center",
+    width: initialWidth,
+    height: initialHeight,
+    fill: "rgba(0,0,0,0.08)",
+    stroke: "#111111",
+    strokeWidth: 1,
+    strokeDashArray: [6, 4],
+    selectable: true,
+    evented: true,
+    hasBorders: true,
+    hasControls: true,
+    lockRotation: true,
+    transparentCorners: false,
+    cornerColor: "#ffffff",
+    cornerStrokeColor: "#111111",
+    borderColor: "#111111",
+    cornerSize: 10
+  });
+
+  selectionRect.setControlsVisibility({
+    mtr: false
+  });
+
+  const enforceBounds = () => {
+    clampCropSelectionToImage(selectionRect, img);
+    canvas.requestRenderAll();
+  };
+
+  selectionRect.on("moving", enforceBounds);
+  selectionRect.on("scaling", enforceBounds);
+  selectionRect.on("modified", enforceBounds);
+
+  canvas.add(selectionRect);
+  canvas.setActiveObject(selectionRect);
+  canvas.bringToFront(selectionRect);
+
+  appState.cropState.selectionRect = selectionRect;
+  appState.cropState.isSelecting = true;
+  setImageInteractionEnabled(false);
+  updateCropButtonState();
+  canvas.requestRenderAll();
+}
+
+function applyInteractiveCrop() {
+  const img = appState.uploadedImage;
+  const selectionRect = appState.cropState?.selectionRect;
+  if (!img || !selectionRect) return;
+
+  const imgBounds = img.getBoundingRect(true);
+  const selBounds = selectionRect.getBoundingRect(true);
+
+  const intersectLeft = Math.max(imgBounds.left, selBounds.left);
+  const intersectTop = Math.max(imgBounds.top, selBounds.top);
+  const intersectRight = Math.min(imgBounds.left + imgBounds.width, selBounds.left + selBounds.width);
+  const intersectBottom = Math.min(imgBounds.top + imgBounds.height, selBounds.top + selBounds.height);
+
+  if (intersectRight <= intersectLeft || intersectBottom <= intersectTop || !img.scaleX || !img.scaleY) {
+    return;
+  }
+
+  if (!appState.cropState.isCropped) {
+    appState.cropState.backup = {
+      cropX: img.cropX || 0,
+      cropY: img.cropY || 0,
+      width: img.width,
+      height: img.height,
+      left: img.left,
+      top: img.top,
+      scaleX: img.scaleX,
+      scaleY: img.scaleY
+    };
+  }
+
+  const visibleW = intersectRight - intersectLeft;
+  const visibleH = intersectBottom - intersectTop;
+
+  const nextCropX = (img.cropX || 0) + (intersectLeft - imgBounds.left) / img.scaleX;
+  const nextCropY = (img.cropY || 0) + (intersectTop - imgBounds.top) / img.scaleY;
+
+  img.set({
+    cropX: nextCropX,
+    cropY: nextCropY,
+    width: visibleW / img.scaleX,
+    height: visibleH / img.scaleY,
+    left: intersectLeft + visibleW / 2,
+    top: intersectTop + visibleH / 2
+  });
+
+  appState.cropState.isCropped = true;
+  cleanupCropSelection();
+  setImageInteractionEnabled(true);
+  canvas.setActiveObject(img);
 }
 
 function toggleImageCrop() {
@@ -5104,48 +5327,10 @@ function toggleImageCrop() {
     return;
   }
 
-  if (!appState.cropState.isCropped) {
-    const clipBounds = getClipBounds();
-    if (!clipBounds) return;
-
-    const imgBounds = img.getBoundingRect(true);
-
-    const intersectLeft = Math.max(imgBounds.left, clipBounds.left);
-    const intersectTop = Math.max(imgBounds.top, clipBounds.top);
-    const intersectRight = Math.min(imgBounds.left + imgBounds.width, clipBounds.left + clipBounds.width);
-    const intersectBottom = Math.min(imgBounds.top + imgBounds.height, clipBounds.top + clipBounds.height);
-
-    if (intersectRight <= intersectLeft || intersectBottom <= intersectTop || !img.scaleX || !img.scaleY) {
-      return;
-    }
-
-    appState.cropState.backup = {
-      cropX: img.cropX || 0,
-      cropY: img.cropY || 0,
-      width: img.width,
-      height: img.height,
-      left: img.left,
-      top: img.top,
-      scaleX: img.scaleX,
-      scaleY: img.scaleY
-    };
-
-    const visibleW = intersectRight - intersectLeft;
-    const visibleH = intersectBottom - intersectTop;
-
-    const nextCropX = (img.cropX || 0) + (intersectLeft - imgBounds.left) / img.scaleX;
-    const nextCropY = (img.cropY || 0) + (intersectTop - imgBounds.top) / img.scaleY;
-
-    img.set({
-      cropX: nextCropX,
-      cropY: nextCropY,
-      width: visibleW / img.scaleX,
-      height: visibleH / img.scaleY,
-      left: intersectLeft + visibleW / 2,
-      top: intersectTop + visibleH / 2
-    });
-
-    appState.cropState.isCropped = true;
+  if (appState.cropState.isSelecting) {
+    applyInteractiveCrop();
+  } else if (!appState.cropState.isCropped) {
+    startInteractiveCrop();
   } else {
     const backup = appState.cropState.backup;
     if (!backup) return;
@@ -5163,6 +5348,8 @@ function toggleImageCrop() {
 
     appState.cropState.isCropped = false;
     appState.cropState.backup = null;
+    setImageInteractionEnabled(true);
+    canvas.setActiveObject(img);
   }
 
   img.setCoords();
