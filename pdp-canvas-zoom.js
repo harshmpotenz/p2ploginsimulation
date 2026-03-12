@@ -7,8 +7,9 @@ class CanvasZoom {
     constructor(canvas, containerSelector = '.canvas-wrap') {
         this.canvas = canvas;
         this.container = document.querySelector(containerSelector);
-        this.lowerCanvas = document.getElementById('image-canvas');
-        this.upperCanvas = this.container.querySelector('.upper-canvas');
+        this.lowerCanvas = null;
+        this.upperCanvas = null;
+        this.refreshCanvasRefs();
         
         // Zoom properties
         this.scale = 1;
@@ -50,50 +51,95 @@ class CanvasZoom {
         
         this.init();
     }
-
-    /**
-     * Get logical canvas dimensions (not retina/backstore size).
-     * Using backstore width/height causes blurry/stretched scaling on high-DPI screens.
-     */
-    getCanvasDimensions() {
-        if (this.canvas && typeof this.canvas.getWidth === 'function' && typeof this.canvas.getHeight === 'function') {
-            const w = this.canvas.getWidth();
-            const h = this.canvas.getHeight();
-            if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
-                return { canvasWidth: w, canvasHeight: h };
-            }
-        }
-
-        if (this.lowerCanvas) {
-            const rect = this.lowerCanvas.getBoundingClientRect();
-            const w = rect.width || this.lowerCanvas.clientWidth || this.lowerCanvas.width || 400;
-            const h = rect.height || this.lowerCanvas.clientHeight || this.lowerCanvas.height || 400;
-            return { canvasWidth: w, canvasHeight: h };
-        }
-
-        return { canvasWidth: 400, canvasHeight: 400 };
-    }
     
     init() {
         this.setupEventListeners();
+        this.setupLayoutObservers();
         this.createMoveIndicator();
         this.createTooltip();
         
         // Set initial state to locked
         this.setMoveEnabled(false);
         
-        // Calculate and apply perfect centered zoom on load
-        setTimeout(() => {
-            this.calculateAndApplyOptimalZoom();
-        }, 100);
+        // Recalculate after DOM paint and again after late size updates.
+        [0, 120, 300].forEach((delay) => {
+            setTimeout(() => this.recalculateZoom(), delay);
+        });
+
+        // Canvas dimensions are finalized after full page load in this PDP flow.
+        window.addEventListener('load', () => {
+            this.recalculateZoom();
+            setTimeout(() => this.recalculateZoom(), 150);
+        });
+    }
+
+    refreshCanvasRefs() {
+        if (!this.container) return;
+        this.lowerCanvas = document.getElementById('image-canvas');
+        this.upperCanvas = this.container.querySelector('.upper-canvas');
+    }
+
+    getCanvasDimensions() {
+        const logicalWidth = typeof this.canvas?.getWidth === 'function' ? this.canvas.getWidth() : this.canvas?.width;
+        const logicalHeight = typeof this.canvas?.getHeight === 'function' ? this.canvas.getHeight() : this.canvas?.height;
+
+        const canvasWidth = Number.isFinite(logicalWidth) && logicalWidth > 0
+            ? logicalWidth
+            : (this.lowerCanvas?.width || this.lowerCanvas?.offsetWidth || 400);
+        const canvasHeight = Number.isFinite(logicalHeight) && logicalHeight > 0
+            ? logicalHeight
+            : (this.lowerCanvas?.height || this.lowerCanvas?.offsetHeight || 400);
+
+        return { canvasWidth, canvasHeight };
+    }
+
+    getContainerDimensions() {
+        const rect = this.container?.getBoundingClientRect();
+        return {
+            containerWidth: rect?.width || this.container?.clientWidth || 0,
+            containerHeight: rect?.height || this.container?.clientHeight || 0
+        };
+    }
+
+    applyCenteredScale(scale, canvasWidth, canvasHeight, containerWidth, containerHeight) {
+        const scaledWidth = canvasWidth * scale;
+        const scaledHeight = canvasHeight * scale;
+
+        this.offsetX = (containerWidth - scaledWidth) / 2;
+        this.offsetY = (containerHeight - scaledHeight) / 2;
+        this.scale = scale;
+        this.updateTransform();
+    }
+
+    calculateAndApplyPlayAreaZoom(padding = 0.98) {
+        try {
+            const { canvasWidth, canvasHeight } = this.getCanvasDimensions();
+            const { containerWidth, containerHeight } = this.getContainerDimensions();
+
+            if (!canvasWidth || !canvasHeight || !containerWidth || !containerHeight) {
+                return;
+            }
+
+            let optimalScale = Math.min(containerWidth / canvasWidth, containerHeight / canvasHeight) * padding;
+            optimalScale = Math.max(this.minScale, Math.min(optimalScale, this.maxScale));
+
+            this.applyCenteredScale(optimalScale, canvasWidth, canvasHeight, containerWidth, containerHeight);
+        } catch (error) {
+            console.error('Error calculating play area zoom:', error);
+            this.scale = 1;
+            this.offsetX = 0;
+            this.offsetY = 0;
+            this.updateTransform();
+        }
     }
     
     /**
      * Calculate optimal zoom - Scale based on LARGER canvas dimension
      */
     calculateAndApplyOptimalZoom() {
+        this.calculateAndApplyPlayAreaZoom(0.98);
+        return;
         try {
-            // Get logical canvas dimensions
             const { canvasWidth, canvasHeight } = this.getCanvasDimensions();
             
             // Get container dimensions
@@ -153,7 +199,6 @@ class CanvasZoom {
      */
     calculateAndApplyMatchingZoom() {
         try {
-            // Get logical canvas dimensions
             const { canvasWidth, canvasHeight } = this.getCanvasDimensions();
             
             // Get container dimensions
@@ -209,7 +254,6 @@ class CanvasZoom {
      */
     calculateAndApplyContainerBasedZoom() {
         try {
-            // Get logical canvas dimensions
             const { canvasWidth, canvasHeight } = this.getCanvasDimensions();
             
             // Get container dimensions
@@ -261,7 +305,6 @@ class CanvasZoom {
      */
     calculateAndApplyFillZoom() {
         try {
-            // Get logical canvas dimensions
             const { canvasWidth, canvasHeight } = this.getCanvasDimensions();
             
             // Get container dimensions
@@ -305,8 +348,9 @@ class CanvasZoom {
      * NEW: Smart scaling - automatically chooses best method
      */
     calculateAndApplySmartZoom() {
+        this.calculateAndApplyPlayAreaZoom(0.98);
+        return;
         try {
-            // Get logical canvas dimensions
             const { canvasWidth, canvasHeight } = this.getCanvasDimensions();
             
             // Get container dimensions
@@ -370,8 +414,7 @@ class CanvasZoom {
      * Recalculate zoom (call this when canvas changes)
      */
     recalculateZoom() {
-        // Use the smart zoom calculation by default
-        this.calculateAndApplySmartZoom();
+        this.calculateAndApplyPlayAreaZoom(0.98);
     }
     
     /**
@@ -482,6 +525,31 @@ class CanvasZoom {
         `;
         this.container.appendChild(this.indicator);
     }
+
+    setupLayoutObservers() {
+        const customForm = document.getElementById('custom-image-form');
+
+        if (typeof ResizeObserver === 'function' && this.container) {
+            this.resizeObserver = new ResizeObserver(() => {
+                this.recalculateZoom();
+            });
+            this.resizeObserver.observe(this.container);
+        }
+
+        if (typeof MutationObserver === 'function' && customForm) {
+            this.formVisibilityObserver = new MutationObserver(() => {
+                if (customForm.offsetParent !== null) {
+                    this.recalculateZoom();
+                    setTimeout(() => this.recalculateZoom(), 100);
+                }
+            });
+
+            this.formVisibilityObserver.observe(customForm, {
+                attributes: true,
+                attributeFilter: ['style', 'class']
+            });
+        }
+    }
     
     createTooltip() {
         // Create a tooltip element
@@ -560,6 +628,11 @@ class CanvasZoom {
     }
     
     setupEventListeners() {
+        this.refreshCanvasRefs();
+        if (!this.container || !this.lowerCanvas || !this.upperCanvas) {
+            return;
+        }
+
         // Mouse wheel for zoom (on container)
         this.container.addEventListener('wheel', this.handleWheel.bind(this), { passive: false });
         
@@ -983,39 +1056,18 @@ class CanvasZoom {
     }
     
     updateTransform() {
-        // Snap to device pixels to reduce blur from sub-pixel translations.
-        const dpr = window.devicePixelRatio || 1;
-        const snappedOffsetX = Math.round(this.offsetX * dpr) / dpr;
-        const snappedOffsetY = Math.round(this.offsetY * dpr) / dpr;
-        const snappedScale = Math.round(this.scale * 1000) / 1000;
+        this.refreshCanvasRefs();
+        if (!this.lowerCanvas || !this.upperCanvas) return;
 
-        // Prefer Fabric viewport transform for crisp rendering.
-        if (this.canvas && typeof this.canvas.setViewportTransform === 'function') {
-            this.canvas.setViewportTransform([snappedScale, 0, 0, snappedScale, snappedOffsetX, snappedOffsetY]);
-            this.canvas.requestRenderAll();
-
-            // Clear legacy CSS transforms if previously applied.
-            if (this.lowerCanvas) {
-                this.lowerCanvas.style.transform = 'none';
-                this.lowerCanvas.style.transformOrigin = '0 0';
-            }
-            if (this.upperCanvas) {
-                this.upperCanvas.style.transform = 'none';
-                this.upperCanvas.style.transformOrigin = '0 0';
-            }
-            return;
-        }
-
-        // Fallback for non-Fabric usage.
-        const transform = `translate3d(${snappedOffsetX}px, ${snappedOffsetY}px, 0) scale(${snappedScale})`;
-        if (this.lowerCanvas) {
-            this.lowerCanvas.style.transform = transform;
-            this.lowerCanvas.style.transformOrigin = '0 0';
-        }
-        if (this.upperCanvas) {
-            this.upperCanvas.style.transform = transform;
-            this.upperCanvas.style.transformOrigin = '0 0';
-        }
+        const transform = `translate(${this.offsetX}px, ${this.offsetY}px) scale(${this.scale})`;
+        
+        // Apply transform to both canvases
+        this.lowerCanvas.style.transform = transform;
+        this.upperCanvas.style.transform = transform;
+        
+        // Update transform-origin
+        this.lowerCanvas.style.transformOrigin = '0 0';
+        this.upperCanvas.style.transformOrigin = '0 0';
     }
     
     // Utility methods with tooltips - MODIFIED for centered zoom
@@ -1164,8 +1216,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Listen for canvas changes - DYNAMIC ZOOM UPDATE
     if (canvas && canvas.on) {
         // Store previous dimensions for both canvas and container
-        let prevCanvasWidth = canvas.width;
-        let prevCanvasHeight = canvas.height;
+        let prevCanvasWidth = typeof canvas.getWidth === 'function' ? canvas.getWidth() : canvas.width;
+        let prevCanvasHeight = typeof canvas.getHeight === 'function' ? canvas.getHeight() : canvas.height;
         let prevContainerWidth = canvasZoom.container.offsetWidth;
         let prevContainerHeight = canvasZoom.container.offsetHeight;
       
@@ -1173,8 +1225,8 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.on('object:added', () => {
             if (canvasZoom) {
                 // Get current dimensions
-                const currentCanvasWidth = canvas.width;
-                const currentCanvasHeight = canvas.height;
+                const currentCanvasWidth = typeof canvas.getWidth === 'function' ? canvas.getWidth() : canvas.width;
+                const currentCanvasHeight = typeof canvas.getHeight === 'function' ? canvas.getHeight() : canvas.height;
                 const currentContainerWidth = canvasZoom.container.offsetWidth;
                 const currentContainerHeight = canvasZoom.container.offsetHeight;
                 
@@ -1205,8 +1257,8 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.on('object:removed', () => {
             if (canvasZoom) {
                 // Get current dimensions
-                const currentCanvasWidth = canvas.width;
-                const currentCanvasHeight = canvas.height;
+                const currentCanvasWidth = typeof canvas.getWidth === 'function' ? canvas.getWidth() : canvas.width;
+                const currentCanvasHeight = typeof canvas.getHeight === 'function' ? canvas.getHeight() : canvas.height;
                 const currentContainerWidth = canvasZoom.container.offsetWidth;
                 const currentContainerHeight = canvasZoom.container.offsetHeight;
                 
@@ -1248,19 +1300,26 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const currentContainerWidth = canvasZoom.container.offsetWidth;
             const currentContainerHeight = canvasZoom.container.offsetHeight;
+            const currentCanvasWidth = typeof canvas.getWidth === 'function' ? canvas.getWidth() : canvas.width;
+            const currentCanvasHeight = typeof canvas.getHeight === 'function' ? canvas.getHeight() : canvas.height;
             
-            if (currentContainerWidth !== prevContainerWidth || currentContainerHeight !== prevContainerHeight) {
+            const containerChanged = currentContainerWidth !== prevContainerWidth || currentContainerHeight !== prevContainerHeight;
+            const canvasChanged = currentCanvasWidth !== prevCanvasWidth || currentCanvasHeight !== prevCanvasHeight;
+
+            if (containerChanged || canvasChanged) {
                
                 
                 canvasZoom.recalculateZoom();
                 
                 prevContainerWidth = currentContainerWidth;
                 prevContainerHeight = currentContainerHeight;
+                prevCanvasWidth = currentCanvasWidth;
+                prevCanvasHeight = currentCanvasHeight;
             }
         }
         
         // Check container size periodically (as a fallback)
-        setInterval(checkContainerSize, 1000);
+        setInterval(checkContainerSize, 300);
     }
 });
 

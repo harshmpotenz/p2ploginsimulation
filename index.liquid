@@ -242,14 +242,14 @@
                   }
 
      
-.canvas-container {
+.mockup-container .canvas-container {
       position: relative;
       width: 300px;
       height: 300px;
     }
 
 
-    .canvas-container canvas {
+    .mockup-container .canvas-container canvas {
       position: absolute;
       top: 0;
       left: 0;
@@ -359,6 +359,44 @@
     gap: 4px;
     flex-direction: column;
         align-items: flex-start;
+}
+.mirror-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 132px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  font-family: 'Instrument Sans';
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.mirror-mode-toggle.is-active {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #101011;
+}
+
+.mirror-mode-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.mirror-mode-hint {
+  margin: 8px 0 0;
+  max-width: 180px;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: 'Instrument Sans';
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: right;
 }
 #price-sale-text{
     font-weight: 900;
@@ -495,6 +533,7 @@
             <input type="hidden" name="properties[_pdp-size]" id="final-size">
             <input type="hidden" name="properties[_pdp-color]" id="final-color">
             <input type="hidden" name="properties[_pdp-variant-id]" id="final-variant-id">
+            <input type="hidden" name="properties[_pdp-mirror-mode]" id="mirror-mode-data" value="false">
             
             <input type="hidden" name="properties[_pdp-img-tag]" id="final-upscale-tag">
             <input type="hidden" name="properties[_pdp-allow-upscale]" id="final-upscale">
@@ -542,6 +581,15 @@
                   </div>
                 </div>
                  <div class="edit-right-tool-wrap">
+                   <button
+                     type="button"
+                     class="mirror-mode-toggle"
+                     id="mirror-mode-toggle"
+                     aria-pressed="false"
+                   >
+                     Mirror edges off
+                   </button>
+                   <p class="mirror-mode-hint">Preview mirrored side walls like Printify canvas wraps.</p>
                    <div class="reset-pdp">
                     <span class="svg-wrapper">
                                 {{- 'icon-remove.svg' | inline_asset_content -}}
