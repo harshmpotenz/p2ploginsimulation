@@ -16,6 +16,8 @@ const appState = {
   innerPadding: 10,
   innerWidth: 400,
   innerHeight: 400,
+  displayWidth: 400,
+  displayHeight: 400,
   selectedWidth: 400,
   selectedHeight: 400,
   uploadedImage: null,
@@ -56,7 +58,9 @@ const appState = {
     lastTouchDistance: 0,
     lastTouchCenterX: 0,
     lastTouchCenterY: 0,
-    initialized: false
+    initialized: false,
+    lastCanvasWidth: 0,
+    lastCanvasHeight: 0
   },
   cropState: {
     isCropped: false,
@@ -68,6 +72,70 @@ const appState = {
 };
 
 const MIRROR_MODE_STORAGE_KEY = "p2pMirrorMode";
+
+function getCappedPreviewRenderSize(originalWidth, originalHeight, displayWidth, displayHeight) {
+  const safeOriginalWidth = Number(originalWidth) || Number(displayWidth) || 400;
+  const safeOriginalHeight = Number(originalHeight) || Number(displayHeight) || 400;
+  const safeDisplayWidth = Number(displayWidth) || 400;
+  const safeDisplayHeight = Number(displayHeight) || 400;
+  const isMobile = window.innerWidth < 680;
+  const maxLongSide = isMobile ? 1200 : 1800;
+  const maxPixels = isMobile ? 1600000 : 3200000;
+  const longestSide = Math.max(safeOriginalWidth, safeOriginalHeight);
+  const totalPixels = safeOriginalWidth * safeOriginalHeight;
+
+  let scale = 1;
+
+  if (longestSide > maxLongSide) {
+    scale = Math.min(scale, maxLongSide / longestSide);
+  }
+
+  if (totalPixels > maxPixels) {
+    scale = Math.min(scale, Math.sqrt(maxPixels / totalPixels));
+  }
+
+  const renderWidth = Math.max(safeDisplayWidth, Math.round(safeOriginalWidth * scale));
+  const renderHeight = Math.max(safeDisplayHeight, Math.round(safeOriginalHeight * scale));
+
+  return {
+    width: renderWidth,
+    height: renderHeight
+  };
+}
+
+function getCanvasPreviewDisplaySize() {
+  const width = Number(appState.displayWidth) || (typeof canvas?.getWidth === "function" ? canvas.getWidth() : canvas?.width) || 0;
+  const height = Number(appState.displayHeight) || (typeof canvas?.getHeight === "function" ? canvas.getHeight() : canvas?.height) || 0;
+
+  return {
+    width,
+    height
+  };
+}
+
+function syncCanvasDisplaySize() {
+  const { lowerCanvas, upperCanvas } = getCanvasPreviewElements();
+  const display = getCanvasPreviewDisplaySize();
+  const wrapper = canvas?.wrapperEl;
+
+  if (!Number.isFinite(display.width) || !Number.isFinite(display.height) || display.width <= 0 || display.height <= 0) {
+    return;
+  }
+
+  const widthPx = `${Math.round(display.width)}px`;
+  const heightPx = `${Math.round(display.height)}px`;
+
+  [wrapper, lowerCanvas, upperCanvas].forEach((node) => {
+    if (!node) return;
+    node.style.width = widthPx;
+    node.style.height = heightPx;
+  });
+
+  canvas?.calcOffset?.();
+  appState.previewViewport.initialized = false;
+  appState.previewViewport.lastCanvasWidth = 0;
+  appState.previewViewport.lastCanvasHeight = 0;
+}
 
 function getCanvasFrontFaceBounds() {
   const edgeSize = Number(appState.innerPadding ?? appState.borderSize ?? 0);
@@ -174,9 +242,12 @@ function initMirrorModeToggle() {
 
 function createFrontFaceSnapshotCanvas(targetWidth, targetHeight) {
   const bounds = getCanvasFrontFaceBounds();
-  const sourceCanvas = canvas?.lowerCanvasEl;
+  const imageObject = appState.uploadedImage;
+  const sourceImage = typeof imageObject?.getElement === "function"
+    ? imageObject.getElement()
+    : (imageObject?._element || imageObject?._originalElement);
 
-  if (!bounds || !sourceCanvas) {
+  if (!bounds || !imageObject || !sourceImage) {
     return null;
   }
 
@@ -190,16 +261,32 @@ function createFrontFaceSnapshotCanvas(targetWidth, targetHeight) {
   }
 
   faceCtx.imageSmoothingEnabled = true;
+  faceCtx.fillStyle = "#ffffff";
+  faceCtx.fillRect(0, 0, faceCanvas.width, faceCanvas.height);
+
+  const scaledWidth = typeof imageObject.getScaledWidth === "function"
+    ? imageObject.getScaledWidth()
+    : (imageObject.width || 0) * (imageObject.scaleX || 1);
+  const scaledHeight = typeof imageObject.getScaledHeight === "function"
+    ? imageObject.getScaledHeight()
+    : (imageObject.height || 0) * (imageObject.scaleY || 1);
+  const drawLeft = (imageObject.left || 0) - (scaledWidth / 2) - bounds.left;
+  const drawTop = (imageObject.top || 0) - (scaledHeight / 2) - bounds.top;
+  const sourceLeft = imageObject.cropX || 0;
+  const sourceTop = imageObject.cropY || 0;
+  const sourceWidth = imageObject.width || sourceImage.naturalWidth || sourceImage.width || 0;
+  const sourceHeight = imageObject.height || sourceImage.naturalHeight || sourceImage.height || 0;
+
   faceCtx.drawImage(
-    sourceCanvas,
-    bounds.left,
-    bounds.top,
-    bounds.width,
-    bounds.height,
-    0,
-    0,
-    faceCanvas.width,
-    faceCanvas.height
+    sourceImage,
+    sourceLeft,
+    sourceTop,
+    sourceWidth,
+    sourceHeight,
+    drawLeft,
+    drawTop,
+    scaledWidth,
+    scaledHeight
   );
 
   return faceCanvas;
@@ -388,11 +475,76 @@ function setCanvasPreviewCursor(cursor) {
   }
 }
 
+function getCanvasPreviewViewportTransform() {
+  const viewportTransform = canvas?.viewportTransform;
+  if (Array.isArray(viewportTransform) && viewportTransform.length === 6) {
+    return viewportTransform.slice();
+  }
+
+  return [1, 0, 0, 1, 0, 0];
+}
+
+function withNeutralCanvasPreviewViewport(callback) {
+  if (typeof callback !== "function") {
+    return null;
+  }
+
+  const preview = appState.previewViewport;
+  const previousScale = preview.scale;
+  const previousOffsetX = preview.offsetX;
+  const previousOffsetY = preview.offsetY;
+  const previousInitialized = preview.initialized;
+  const previousTransform = getCanvasPreviewViewportTransform();
+
+  const restoreViewport = () => {
+    preview.scale = previousScale;
+    preview.offsetX = previousOffsetX;
+    preview.offsetY = previousOffsetY;
+    preview.initialized = previousInitialized;
+
+    if (typeof canvas?.setViewportTransform === "function") {
+      canvas.setViewportTransform(previousTransform);
+    } else if (canvas) {
+      canvas.viewportTransform = previousTransform;
+    }
+
+    canvas?.calcOffset?.();
+    canvas?.renderAll?.();
+  };
+
+  preview.scale = 1;
+  preview.offsetX = 0;
+  preview.offsetY = 0;
+
+  if (typeof canvas?.setViewportTransform === "function") {
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+  } else if (canvas) {
+    canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+  }
+
+  canvas?.calcOffset?.();
+  canvas?.renderAll?.();
+
+  try {
+    const result = callback();
+    if (result && typeof result.then === "function") {
+      return result.finally(restoreViewport);
+    }
+
+    restoreViewport();
+    return result;
+  } catch (error) {
+    restoreViewport();
+    throw error;
+  }
+}
+
 function clampCanvasPreviewOffsets() {
   const preview = appState.previewViewport;
   const { container } = getCanvasPreviewElements();
-  const canvasWidth = typeof canvas?.getWidth === "function" ? canvas.getWidth() : canvas?.width;
-  const canvasHeight = typeof canvas?.getHeight === "function" ? canvas.getHeight() : canvas?.height;
+  const display = getCanvasPreviewDisplaySize();
+  const canvasWidth = display.width;
+  const canvasHeight = display.height;
 
   if (!container || !Number.isFinite(canvasWidth) || !Number.isFinite(canvasHeight)) {
     return;
@@ -418,25 +570,35 @@ function clampCanvasPreviewOffsets() {
   preview.offsetY = Math.min(maxOffsetY, Math.max(minOffsetY, preview.offsetY));
 }
 
-function applyCanvasPreviewTransform() {
+function applyCanvasPreviewViewport() {
   const preview = appState.previewViewport;
   const { lowerCanvas, upperCanvas } = getCanvasPreviewElements();
   const translateX = Math.abs(preview.scale - 1) < 0.001 ? Math.round(preview.offsetX) : preview.offsetX;
   const translateY = Math.abs(preview.scale - 1) < 0.001 ? Math.round(preview.offsetY) : preview.offsetY;
   const transform = `translate(${translateX}px, ${translateY}px) scale(${preview.scale})`;
 
+  if (typeof canvas?.setViewportTransform === "function") {
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+  } else if (canvas) {
+    canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+  }
+
   [lowerCanvas, upperCanvas].forEach((node) => {
     if (!node) return;
     node.style.transformOrigin = "0 0";
     node.style.transform = transform;
   });
+
+  canvas?.calcOffset?.();
+  canvas?.requestRenderAll?.();
 }
 
 function recalculateCanvasPreviewZoom() {
   const preview = appState.previewViewport;
   const { container } = getCanvasPreviewElements();
-  const canvasWidth = typeof canvas?.getWidth === "function" ? canvas.getWidth() : canvas?.width;
-  const canvasHeight = typeof canvas?.getHeight === "function" ? canvas.getHeight() : canvas?.height;
+  const display = getCanvasPreviewDisplaySize();
+  const canvasWidth = display.width;
+  const canvasHeight = display.height;
 
   if (!container || !Number.isFinite(canvasWidth) || !Number.isFinite(canvasHeight) || canvasWidth <= 0 || canvasHeight <= 0) {
     return;
@@ -450,15 +612,19 @@ function recalculateCanvasPreviewZoom() {
   preview.minScale = 0.5;
   preview.maxScale = 4;
 
-  if (!preview.initialized) {
+  const sizeChanged = canvasWidth !== preview.lastCanvasWidth || canvasHeight !== preview.lastCanvasHeight;
+
+  if (!preview.initialized || sizeChanged) {
     preview.scale = 1;
-    preview.offsetX = (containerRect.width - canvasWidth) / 2;
-    preview.offsetY = (containerRect.height - canvasHeight) / 2;
+    preview.offsetX = Math.round((containerRect.width - canvasWidth) / 2);
+    preview.offsetY = Math.round((containerRect.height - canvasHeight) / 2);
     preview.initialized = true;
   }
 
+  preview.lastCanvasWidth = canvasWidth;
+  preview.lastCanvasHeight = canvasHeight;
   clampCanvasPreviewOffsets();
-  applyCanvasPreviewTransform();
+  applyCanvasPreviewViewport();
 }
 
 function zoomCanvasPreviewAtPoint(clientX, clientY, nextScale) {
@@ -479,7 +645,7 @@ function zoomCanvasPreviewAtPoint(clientX, clientY, nextScale) {
   preview.offsetY = pointerY - worldY * preview.scale;
 
   clampCanvasPreviewOffsets();
-  applyCanvasPreviewTransform();
+  applyCanvasPreviewViewport();
 }
 
 function isMainImageSelected() {
@@ -551,7 +717,7 @@ function handleCanvasPreviewMouseMove(opt) {
   appState.previewViewport.offsetY = event.clientY - appState.previewViewport.startY;
 
   clampCanvasPreviewOffsets();
-  applyCanvasPreviewTransform();
+  applyCanvasPreviewViewport();
   event.preventDefault();
 }
 
@@ -619,7 +785,7 @@ function handleCanvasPreviewTouchMove(event) {
     preview.offsetX = event.touches[0].clientX - preview.startX;
     preview.offsetY = event.touches[0].clientY - preview.startY;
     clampCanvasPreviewOffsets();
-    applyCanvasPreviewTransform();
+    applyCanvasPreviewViewport();
     event.preventDefault();
     return;
   }
@@ -638,7 +804,7 @@ function handleCanvasPreviewTouchMove(event) {
     preview.offsetX += currentCenter.x - preview.lastTouchCenterX;
     preview.offsetY += currentCenter.y - preview.lastTouchCenterY;
     clampCanvasPreviewOffsets();
-    applyCanvasPreviewTransform();
+    applyCanvasPreviewViewport();
 
     preview.lastTouchDistance = currentDistance;
     preview.lastTouchCenterX = currentCenter.x;
@@ -728,6 +894,8 @@ function initCanvasPreviewInteractions() {
   upperCanvas.style.webkitUserSelect = "none";
   upperCanvas.style.userSelect = "none";
   lowerCanvas.style.touchAction = "none";
+  lowerCanvas.style.transform = "";
+  upperCanvas.style.transform = "";
   upperCanvas.addEventListener("touchstart", handleCanvasPreviewTouchStart, { passive: false });
   upperCanvas.addEventListener("touchmove", handleCanvasPreviewTouchMove, { passive: false });
   upperCanvas.addEventListener("touchend", handleCanvasPreviewTouchEnd, { passive: false });
@@ -764,6 +932,8 @@ function configureEditableImageControls(image) {
     borderColor: "rgba(255,255,255,0.9)",
     borderDashArray: [4, 4],
     padding: 0,
+    objectCaching: false,
+    noScaleCache: false,
     hoverCursor: "move",
     moveCursor: "move"
   });
@@ -1271,6 +1441,7 @@ const currentDpi = Number((appState.dpi || 0).toFixed(2));
 function updateFrameFromPixels(width, height, width1, height1) {
   canvas.setWidth(width + appState.outerMargin * 2);
   canvas.setHeight(height + appState.outerMargin * 2);
+  syncCanvasDisplaySize();
   requestCanvasZoomRecalc();
   const frnheight = appState.originalHeight;
   const frmwidth = appState.originalWidth;
@@ -1575,6 +1746,14 @@ switch (sortedSize) {
 
   if (!Number.isFinite(innerPadding)) {
     innerPadding = 0;
+  }
+
+  const displayScaleX = appState.displayWidth ? width / appState.displayWidth : 1;
+  const displayScaleY = appState.displayHeight ? height / appState.displayHeight : 1;
+  const displayScale = Math.min(displayScaleX, displayScaleY);
+
+  if (Number.isFinite(displayScale) && displayScale > 0) {
+    innerPadding *= displayScale;
   }
 
   appState.innerPadding = innerPadding;
@@ -1986,7 +2165,7 @@ function updateFrameSize(selectedOption) {
     // Get orientation selection
     const selectedRadio = document.querySelector('input[name="orientation"]:checked');
     const selectedOrientation = selectedRadio ? selectedRadio.value : "portrait";
-      const selectedsize = document.querySelector('input[name="frameSize"]:checked');
+    const selectedsize = document.querySelector('input[name="frameSize"]:checked');
     // Get frame size data from selected option
     const originalsize = selectedOption.getAttribute("data-original-size");
     const [width1, height1] = originalsize.split("x").map(Number);
@@ -1994,15 +2173,11 @@ function updateFrameSize(selectedOption) {
   document.querySelectorAll(".selected-size").forEach(el => {
     el.textContent = selectedsize.value;
   });
-
-     let dataratio;
- let size;
+    let size;
   if (window.innerWidth < 680) {
     size = selectedOption.getAttribute("data-pixel-mobile");
-    dataratio = selectedOption.getAttribute("data-ratio-mobile");
   } else {
     size = selectedOption.getAttribute("data-pixel-desktop");
-    dataratio = selectedOption.getAttribute("data-ratio-desktop");
   }
 
     const frmsize = selectedOption.getAttribute("data-frmsize");
@@ -2017,18 +2192,29 @@ function updateFrameSize(selectedOption) {
     if (selectedOrientation === "portrait") {
         appState.originalWidth = width1;
         appState.originalHeight = height1;
-        appState.selectedWidth = width;
-        appState.selectedHeight = height;
+        appState.displayWidth = width;
+        appState.displayHeight = height;
         appState.extendheight = extendheight;
         appState.extendwidth = extendwidth;
     } else { // landscape
         appState.originalWidth = height1; 
         appState.originalHeight = width1;
-        appState.selectedWidth = height;
-        appState.selectedHeight = width;
+        appState.displayWidth = height;
+        appState.displayHeight = width;
         appState.extendheight = extendwidth;
         appState.extendwidth = extendheight;
     }
+
+    const renderSize = getCappedPreviewRenderSize(
+      appState.originalWidth,
+      appState.originalHeight,
+      appState.displayWidth,
+      appState.displayHeight
+    );
+
+    appState.selectedWidth = renderSize.width;
+    appState.selectedHeight = renderSize.height;
+    const dataratio = appState.selectedWidth > 0 ? (appState.originalWidth / appState.selectedWidth) : 1;
     
     // Update UI elements
     updateFrameFromPixels(appState.selectedWidth, appState.selectedHeight, appState.originalWidth, appState.originalHeight);
@@ -2052,6 +2238,7 @@ function updateFrameSize(selectedOption) {
     // Handle canvas updates
     canvas.setWidth(appState.selectedWidth);
     canvas.setHeight(appState.selectedHeight);
+    syncCanvasDisplaySize();
     requestCanvasZoomRecalc();
     
     // Update all canvas objects
@@ -2725,10 +2912,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const firstSelected = document.querySelector("#frameSizeOptions input[name=\"frameSize\"]:checked") || document.querySelector("#frameSizeOptions input[name=\"frameSize\"]");
 
   if (firstSelected) {
-    const [width, height] = firstSelected.getAttribute("data-size").split("x").map(Number);
-    appState.selectedWidth = width;
-    appState.selectedHeight = height;
-    updateFrameFromPixels(appState.selectedWidth, appState.selectedHeight);
+    updateFrameSize(firstSelected);
   }
 
   if (syncmodeparam === "select-pdp" || syncmodeparam === "select-print" ||  syncmodeparam === "pdp-select" || syncmodeparam === "pdp-img" ) {
@@ -3511,10 +3695,10 @@ async function exportFullDivAsImage(customerId, sessionId) {
     
 
     // 1️⃣ Export canvas to data URL
-    const dataURL = canvas.toDataURL({
+    const dataURL = withNeutralCanvasPreviewViewport(() => canvas.toDataURL({
       format: "jpeg",
       multiplier: 2,
-    });
+    }));
     // const paddedDataURL = await addPaddingToDataURL(dataURL, 0);
 
     const res = await fetch(dataURL);
@@ -4130,11 +4314,13 @@ if (window.innerWidth < 680) {
   cropped.height = sh;
   const ctx = cropped.getContext("2d");
 
-  ctx.drawImage(
-    canvas.lowerCanvasEl,
-    innerPadding, innerPadding, sw, sh,
-    0, 0, sw, sh
-  );
+  withNeutralCanvasPreviewViewport(() => {
+    ctx.drawImage(
+      canvas.lowerCanvasEl,
+      innerPadding, innerPadding, sw, sh,
+      0, 0, sw, sh
+    );
+  });
 
   return cropped;
 }
