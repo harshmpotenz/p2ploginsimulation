@@ -464,9 +464,22 @@ function getCanvasPreviewElements() {
   };
 }
 
-function setCanvasPreviewCursor(cursor) {
+function isPreviewCanvasTarget(target) {
   const { lowerCanvas, upperCanvas } = getCanvasPreviewElements();
+  if (!target) return false;
 
+  return Boolean(
+    (lowerCanvas && (target === lowerCanvas || lowerCanvas.contains?.(target))) ||
+    (upperCanvas && (target === upperCanvas || upperCanvas.contains?.(target)))
+  );
+}
+
+function setCanvasPreviewCursor(cursor) {
+  const { container, lowerCanvas, upperCanvas } = getCanvasPreviewElements();
+
+  if (container) {
+    container.style.cursor = cursor;
+  }
   if (lowerCanvas) {
     lowerCanvas.style.cursor = cursor;
   }
@@ -652,6 +665,18 @@ function isMainImageSelected() {
   return canvas.getActiveObject?.() === appState.uploadedImage && !appState.cropState?.isSelecting;
 }
 
+function beginCanvasPreviewPan(clientX, clientY) {
+  if (canvas.getActiveObject()) {
+    canvas.discardActiveObject();
+    canvas.requestRenderAll();
+  }
+
+  appState.previewViewport.isPanning = true;
+  appState.previewViewport.startX = clientX - appState.previewViewport.offsetX;
+  appState.previewViewport.startY = clientY - appState.previewViewport.offsetY;
+  updateCanvasPreviewCursorState();
+}
+
 function updateCanvasPreviewCursorState() {
   if (appState.previewViewport.isPanning) {
     setCanvasPreviewCursor("grabbing");
@@ -666,8 +691,7 @@ function updateCanvasPreviewCursorState() {
   setCanvasPreviewCursor(appState.uploadedImage ? "grab" : "default");
 }
 
-function handleCanvasPreviewWheel(opt) {
-  const event = opt.e;
+function processCanvasPreviewWheelEvent(event) {
   if (!event) return;
 
   if (appState.cropState?.isSelecting) {
@@ -688,6 +712,10 @@ function handleCanvasPreviewWheel(opt) {
   event.stopPropagation();
 }
 
+function handleCanvasPreviewWheel(opt) {
+  processCanvasPreviewWheelEvent(opt.e);
+}
+
 function handleCanvasPreviewMouseDown(opt) {
   const event = opt.e;
   if (!event || event.button !== 0 || appState.cropState?.isSelecting) return;
@@ -697,15 +725,7 @@ function handleCanvasPreviewMouseDown(opt) {
     return;
   }
 
-  if (canvas.getActiveObject()) {
-    canvas.discardActiveObject();
-    canvas.requestRenderAll();
-  }
-
-  appState.previewViewport.isPanning = true;
-  appState.previewViewport.startX = event.clientX - appState.previewViewport.offsetX;
-  appState.previewViewport.startY = event.clientY - appState.previewViewport.offsetY;
-  updateCanvasPreviewCursorState();
+  beginCanvasPreviewPan(event.clientX, event.clientY);
   event.preventDefault();
 }
 
@@ -726,6 +746,54 @@ function stopCanvasPreviewPan() {
 
   appState.previewViewport.isPanning = false;
   updateCanvasPreviewCursorState();
+}
+
+function handleCanvasWrapWheel(event) {
+  if (!event || isPreviewCanvasTarget(event.target)) return;
+  processCanvasPreviewWheelEvent(event);
+}
+
+function handleCanvasWrapMouseDown(event) {
+  if (!event || event.button !== 0 || appState.cropState?.isSelecting || isPreviewCanvasTarget(event.target)) {
+    return;
+  }
+
+  beginCanvasPreviewPan(event.clientX, event.clientY);
+  event.preventDefault();
+}
+
+function handleCanvasWrapMouseMove(event) {
+  if (!event || !appState.previewViewport.isPanning) return;
+
+  appState.previewViewport.offsetX = event.clientX - appState.previewViewport.startX;
+  appState.previewViewport.offsetY = event.clientY - appState.previewViewport.startY;
+  clampCanvasPreviewOffsets();
+  applyCanvasPreviewViewport();
+  event.preventDefault();
+}
+
+function handleCanvasWrapTouchStart(event) {
+  if (!event || (appState.previewViewport.touchMode === "none" && isPreviewCanvasTarget(event.target))) {
+    return;
+  }
+
+  handleCanvasPreviewTouchStart(event);
+}
+
+function handleCanvasWrapTouchMove(event) {
+  if (!event || (appState.previewViewport.touchMode === "none" && isPreviewCanvasTarget(event.target))) {
+    return;
+  }
+
+  handleCanvasPreviewTouchMove(event);
+}
+
+function handleCanvasWrapTouchEnd(event) {
+  if (!event || (appState.previewViewport.touchMode === "none" && isPreviewCanvasTarget(event.target))) {
+    return;
+  }
+
+  handleCanvasPreviewTouchEnd(event);
 }
 
 function getTouchDistance(touch1, touch2) {
@@ -871,8 +939,8 @@ function handleCanvasPreviewTouchEnd(event) {
 function initCanvasPreviewInteractions() {
   if (canvas.__previewInteractionsInitialized) return;
 
-  const { upperCanvas, lowerCanvas } = getCanvasPreviewElements();
-  if (!upperCanvas || !lowerCanvas) {
+  const { container, upperCanvas, lowerCanvas } = getCanvasPreviewElements();
+  if (!container || !upperCanvas || !lowerCanvas) {
     requestAnimationFrame(initCanvasPreviewInteractions);
     return;
   }
@@ -890,6 +958,14 @@ function initCanvasPreviewInteractions() {
   canvas.on("selection:cleared", updateCanvasPreviewCursorState);
 
   upperCanvas.addEventListener("mouseleave", stopCanvasPreviewPan);
+  container.addEventListener("mouseleave", stopCanvasPreviewPan);
+  container.addEventListener("wheel", handleCanvasWrapWheel, { passive: false });
+  container.addEventListener("mousedown", handleCanvasWrapMouseDown);
+  container.addEventListener("mousemove", handleCanvasWrapMouseMove);
+  container.addEventListener("touchstart", handleCanvasWrapTouchStart, { passive: false });
+  container.addEventListener("touchmove", handleCanvasWrapTouchMove, { passive: false });
+  container.addEventListener("touchend", handleCanvasWrapTouchEnd, { passive: false });
+  container.addEventListener("touchcancel", handleCanvasWrapTouchEnd, { passive: false });
   upperCanvas.style.touchAction = "none";
   upperCanvas.style.webkitUserSelect = "none";
   upperCanvas.style.userSelect = "none";
@@ -901,6 +977,7 @@ function initCanvasPreviewInteractions() {
   upperCanvas.addEventListener("touchend", handleCanvasPreviewTouchEnd, { passive: false });
   upperCanvas.addEventListener("touchcancel", handleCanvasPreviewTouchEnd, { passive: false });
 
+  window.addEventListener("mouseup", stopCanvasPreviewPan);
   window.addEventListener("resize", requestCanvasZoomRecalc);
   window.recalculateCanvasZoom = recalculateCanvasPreviewZoom;
 
