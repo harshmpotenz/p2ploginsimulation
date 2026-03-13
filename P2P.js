@@ -43,6 +43,21 @@ const appState = {
   baseEdgeType: "FitToEdge",
   selectedEdgeType: "FitToEdge",
   isMirrorMode: false,
+  previewViewport: {
+    scale: 1,
+    minScale: 1,
+    maxScale: 4,
+    offsetX: 0,
+    offsetY: 0,
+    isPanning: false,
+    startX: 0,
+    startY: 0,
+    touchMode: "none",
+    lastTouchDistance: 0,
+    lastTouchCenterX: 0,
+    lastTouchCenterY: 0,
+    initialized: false
+  },
   cropState: {
     isCropped: false,
     backup: null,
@@ -353,6 +368,414 @@ function drawMirrorPreviewOnTop(ctx, edgeSize) {
 
   return true;
 }
+
+function getCanvasPreviewElements() {
+  return {
+    container: document.querySelector(".canvas-wrap"),
+    lowerCanvas: canvas?.lowerCanvasEl || document.getElementById("image-canvas"),
+    upperCanvas: canvas?.upperCanvasEl || document.querySelector(".canvas-wrap .upper-canvas")
+  };
+}
+
+function setCanvasPreviewCursor(cursor) {
+  const { lowerCanvas, upperCanvas } = getCanvasPreviewElements();
+
+  if (lowerCanvas) {
+    lowerCanvas.style.cursor = cursor;
+  }
+  if (upperCanvas) {
+    upperCanvas.style.cursor = cursor;
+  }
+}
+
+function clampCanvasPreviewOffsets() {
+  const preview = appState.previewViewport;
+  const { container } = getCanvasPreviewElements();
+  const canvasWidth = typeof canvas?.getWidth === "function" ? canvas.getWidth() : canvas?.width;
+  const canvasHeight = typeof canvas?.getHeight === "function" ? canvas.getHeight() : canvas?.height;
+
+  if (!container || !Number.isFinite(canvasWidth) || !Number.isFinite(canvasHeight)) {
+    return;
+  }
+
+  const containerRect = container.getBoundingClientRect();
+  const scaledWidth = canvasWidth * preview.scale;
+  const scaledHeight = canvasHeight * preview.scale;
+  const minOffsetX = scaledWidth <= containerRect.width
+    ? 0
+    : containerRect.width - scaledWidth;
+  const maxOffsetX = scaledWidth <= containerRect.width
+    ? containerRect.width - scaledWidth
+    : 0;
+  const minOffsetY = scaledHeight <= containerRect.height
+    ? 0
+    : containerRect.height - scaledHeight;
+  const maxOffsetY = scaledHeight <= containerRect.height
+    ? containerRect.height - scaledHeight
+    : 0;
+
+  preview.offsetX = Math.min(maxOffsetX, Math.max(minOffsetX, preview.offsetX));
+  preview.offsetY = Math.min(maxOffsetY, Math.max(minOffsetY, preview.offsetY));
+}
+
+function applyCanvasPreviewTransform() {
+  const preview = appState.previewViewport;
+  const { lowerCanvas, upperCanvas } = getCanvasPreviewElements();
+  const translateX = Math.abs(preview.scale - 1) < 0.001 ? Math.round(preview.offsetX) : preview.offsetX;
+  const translateY = Math.abs(preview.scale - 1) < 0.001 ? Math.round(preview.offsetY) : preview.offsetY;
+  const transform = `translate(${translateX}px, ${translateY}px) scale(${preview.scale})`;
+
+  [lowerCanvas, upperCanvas].forEach((node) => {
+    if (!node) return;
+    node.style.transformOrigin = "0 0";
+    node.style.transform = transform;
+  });
+}
+
+function recalculateCanvasPreviewZoom() {
+  const preview = appState.previewViewport;
+  const { container } = getCanvasPreviewElements();
+  const canvasWidth = typeof canvas?.getWidth === "function" ? canvas.getWidth() : canvas?.width;
+  const canvasHeight = typeof canvas?.getHeight === "function" ? canvas.getHeight() : canvas?.height;
+
+  if (!container || !Number.isFinite(canvasWidth) || !Number.isFinite(canvasHeight) || canvasWidth <= 0 || canvasHeight <= 0) {
+    return;
+  }
+
+  const containerRect = container.getBoundingClientRect();
+  if (!containerRect.width || !containerRect.height) {
+    return;
+  }
+
+  preview.minScale = 0.5;
+  preview.maxScale = 4;
+
+  if (!preview.initialized) {
+    preview.scale = 1;
+    preview.offsetX = (containerRect.width - canvasWidth) / 2;
+    preview.offsetY = (containerRect.height - canvasHeight) / 2;
+    preview.initialized = true;
+  }
+
+  clampCanvasPreviewOffsets();
+  applyCanvasPreviewTransform();
+}
+
+function zoomCanvasPreviewAtPoint(clientX, clientY, nextScale) {
+  const preview = appState.previewViewport;
+  const { container } = getCanvasPreviewElements();
+
+  if (!container) return;
+
+  const clampedScale = Math.max(preview.minScale, Math.min(preview.maxScale, nextScale));
+  const rect = container.getBoundingClientRect();
+  const pointerX = clientX - rect.left;
+  const pointerY = clientY - rect.top;
+  const worldX = (pointerX - preview.offsetX) / preview.scale;
+  const worldY = (pointerY - preview.offsetY) / preview.scale;
+
+  preview.scale = clampedScale;
+  preview.offsetX = pointerX - worldX * preview.scale;
+  preview.offsetY = pointerY - worldY * preview.scale;
+
+  clampCanvasPreviewOffsets();
+  applyCanvasPreviewTransform();
+}
+
+function isMainImageSelected() {
+  return canvas.getActiveObject?.() === appState.uploadedImage && !appState.cropState?.isSelecting;
+}
+
+function updateCanvasPreviewCursorState() {
+  if (appState.previewViewport.isPanning) {
+    setCanvasPreviewCursor("grabbing");
+    return;
+  }
+
+  if (isMainImageSelected()) {
+    setCanvasPreviewCursor("default");
+    return;
+  }
+
+  setCanvasPreviewCursor(appState.uploadedImage ? "grab" : "default");
+}
+
+function handleCanvasPreviewWheel(opt) {
+  const event = opt.e;
+  if (!event) return;
+
+  if (appState.cropState?.isSelecting) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+
+  if (isMainImageSelected()) {
+    const zoomFactor = event.deltaY > 0 ? 0.95 : 1.05;
+    updateZoom(appState.zoom * zoomFactor);
+  } else {
+    const zoomFactor = event.deltaY > 0 ? 0.92 : 1.08;
+    zoomCanvasPreviewAtPoint(event.clientX, event.clientY, appState.previewViewport.scale * zoomFactor);
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function handleCanvasPreviewMouseDown(opt) {
+  const event = opt.e;
+  if (!event || event.button !== 0 || appState.cropState?.isSelecting) return;
+
+  if (opt.target) {
+    updateCanvasPreviewCursorState();
+    return;
+  }
+
+  if (canvas.getActiveObject()) {
+    canvas.discardActiveObject();
+    canvas.requestRenderAll();
+  }
+
+  appState.previewViewport.isPanning = true;
+  appState.previewViewport.startX = event.clientX - appState.previewViewport.offsetX;
+  appState.previewViewport.startY = event.clientY - appState.previewViewport.offsetY;
+  updateCanvasPreviewCursorState();
+  event.preventDefault();
+}
+
+function handleCanvasPreviewMouseMove(opt) {
+  const event = opt.e;
+  if (!event || !appState.previewViewport.isPanning) return;
+
+  appState.previewViewport.offsetX = event.clientX - appState.previewViewport.startX;
+  appState.previewViewport.offsetY = event.clientY - appState.previewViewport.startY;
+
+  clampCanvasPreviewOffsets();
+  applyCanvasPreviewTransform();
+  event.preventDefault();
+}
+
+function stopCanvasPreviewPan() {
+  if (!appState.previewViewport.isPanning) return;
+
+  appState.previewViewport.isPanning = false;
+  updateCanvasPreviewCursorState();
+}
+
+function getTouchDistance(touch1, touch2) {
+  const dx = touch2.clientX - touch1.clientX;
+  const dy = touch2.clientY - touch1.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function getTouchCenter(touch1, touch2) {
+  return {
+    x: (touch1.clientX + touch2.clientX) / 2,
+    y: (touch1.clientY + touch2.clientY) / 2
+  };
+}
+
+function handleCanvasPreviewTouchStart(event) {
+  const preview = appState.previewViewport;
+  if (!event) return;
+
+  if (appState.cropState?.isSelecting) {
+    event.preventDefault();
+    return;
+  }
+
+  if (event.touches.length === 2) {
+    const center = getTouchCenter(event.touches[0], event.touches[1]);
+    preview.touchMode = isMainImageSelected() ? "imagePinch" : "previewPinch";
+    preview.lastTouchDistance = getTouchDistance(event.touches[0], event.touches[1]);
+    preview.lastTouchCenterX = center.x;
+    preview.lastTouchCenterY = center.y;
+    preview.isPanning = false;
+    event.preventDefault();
+    updateCanvasPreviewCursorState();
+    return;
+  }
+
+  if (event.touches.length === 1 && !isMainImageSelected()) {
+    if (canvas.getActiveObject()) {
+      canvas.discardActiveObject();
+      canvas.requestRenderAll();
+    }
+
+    preview.touchMode = "previewPan";
+    preview.isPanning = true;
+    preview.startX = event.touches[0].clientX - preview.offsetX;
+    preview.startY = event.touches[0].clientY - preview.offsetY;
+    event.preventDefault();
+    updateCanvasPreviewCursorState();
+  }
+}
+
+function handleCanvasPreviewTouchMove(event) {
+  const preview = appState.previewViewport;
+  if (!event) return;
+
+  if (preview.touchMode === "previewPan" && event.touches.length === 1) {
+    preview.offsetX = event.touches[0].clientX - preview.startX;
+    preview.offsetY = event.touches[0].clientY - preview.startY;
+    clampCanvasPreviewOffsets();
+    applyCanvasPreviewTransform();
+    event.preventDefault();
+    return;
+  }
+
+  if (preview.touchMode === "previewPinch" && event.touches.length === 2) {
+    const currentDistance = getTouchDistance(event.touches[0], event.touches[1]);
+    const currentCenter = getTouchCenter(event.touches[0], event.touches[1]);
+    const scaleFactor = preview.lastTouchDistance ? currentDistance / preview.lastTouchDistance : 1;
+
+    zoomCanvasPreviewAtPoint(
+      currentCenter.x,
+      currentCenter.y,
+      preview.scale * scaleFactor
+    );
+
+    preview.offsetX += currentCenter.x - preview.lastTouchCenterX;
+    preview.offsetY += currentCenter.y - preview.lastTouchCenterY;
+    clampCanvasPreviewOffsets();
+    applyCanvasPreviewTransform();
+
+    preview.lastTouchDistance = currentDistance;
+    preview.lastTouchCenterX = currentCenter.x;
+    preview.lastTouchCenterY = currentCenter.y;
+    event.preventDefault();
+    return;
+  }
+
+  if (preview.touchMode === "imagePinch" && event.touches.length === 2 && appState.uploadedImage) {
+    const currentDistance = getTouchDistance(event.touches[0], event.touches[1]);
+    const currentCenter = getTouchCenter(event.touches[0], event.touches[1]);
+    const scaleFactor = preview.lastTouchDistance ? currentDistance / preview.lastTouchDistance : 1;
+
+    updateZoom(appState.zoom * scaleFactor);
+
+    const deltaX = currentCenter.x - preview.lastTouchCenterX;
+    const deltaY = currentCenter.y - preview.lastTouchCenterY;
+    const previewScale = appState.previewViewport.scale || 1;
+
+    appState.uploadedImage.set({
+      left: appState.uploadedImage.left + (deltaX / previewScale),
+      top: appState.uploadedImage.top + (deltaY / previewScale)
+    });
+    appState.uploadedImage.setCoords();
+    updateMovementConstraints();
+    updatePositionInfo();
+    canvas.requestRenderAll();
+
+    preview.lastTouchDistance = currentDistance;
+    preview.lastTouchCenterX = currentCenter.x;
+    preview.lastTouchCenterY = currentCenter.y;
+    event.preventDefault();
+  }
+}
+
+function handleCanvasPreviewTouchEnd(event) {
+  const preview = appState.previewViewport;
+  if (!event) return;
+
+  if (event.touches.length === 1 && preview.touchMode === "previewPinch") {
+    preview.touchMode = "previewPan";
+    preview.isPanning = true;
+    preview.startX = event.touches[0].clientX - preview.offsetX;
+    preview.startY = event.touches[0].clientY - preview.offsetY;
+    preview.lastTouchDistance = 0;
+    return;
+  }
+
+  if (event.touches.length === 0) {
+    preview.touchMode = "none";
+    preview.lastTouchDistance = 0;
+    preview.isPanning = false;
+    updateCanvasPreviewCursorState();
+    return;
+  }
+
+  if (event.touches.length === 1 && preview.touchMode === "imagePinch") {
+    preview.touchMode = "none";
+    preview.lastTouchDistance = 0;
+    updateCanvasPreviewCursorState();
+  }
+}
+
+function initCanvasPreviewInteractions() {
+  if (canvas.__previewInteractionsInitialized) return;
+
+  const { upperCanvas, lowerCanvas } = getCanvasPreviewElements();
+  if (!upperCanvas || !lowerCanvas) {
+    requestAnimationFrame(initCanvasPreviewInteractions);
+    return;
+  }
+
+  canvas.__previewInteractionsInitialized = true;
+  canvas.selection = false;
+  canvas.preserveObjectStacking = true;
+
+  canvas.on("mouse:wheel", handleCanvasPreviewWheel);
+  canvas.on("mouse:down", handleCanvasPreviewMouseDown);
+  canvas.on("mouse:move", handleCanvasPreviewMouseMove);
+  canvas.on("mouse:up", stopCanvasPreviewPan);
+  canvas.on("selection:created", updateCanvasPreviewCursorState);
+  canvas.on("selection:updated", updateCanvasPreviewCursorState);
+  canvas.on("selection:cleared", updateCanvasPreviewCursorState);
+
+  upperCanvas.addEventListener("mouseleave", stopCanvasPreviewPan);
+  upperCanvas.style.touchAction = "none";
+  upperCanvas.style.webkitUserSelect = "none";
+  upperCanvas.style.userSelect = "none";
+  lowerCanvas.style.touchAction = "none";
+  upperCanvas.addEventListener("touchstart", handleCanvasPreviewTouchStart, { passive: false });
+  upperCanvas.addEventListener("touchmove", handleCanvasPreviewTouchMove, { passive: false });
+  upperCanvas.addEventListener("touchend", handleCanvasPreviewTouchEnd, { passive: false });
+  upperCanvas.addEventListener("touchcancel", handleCanvasPreviewTouchEnd, { passive: false });
+
+  window.addEventListener("resize", requestCanvasZoomRecalc);
+  window.recalculateCanvasZoom = recalculateCanvasPreviewZoom;
+
+  requestAnimationFrame(() => {
+    recalculateCanvasPreviewZoom();
+    updateCanvasPreviewCursorState();
+  });
+}
+
+function configureEditableImageControls(image) {
+  if (!image) return;
+
+  image.set({
+    selectable: true,
+    evented: true,
+    hasBorders: true,
+    hasControls: true,
+    lockRotation: true,
+    lockScalingFlip: true,
+    lockUniScaling: true,
+    originX: "center",
+    originY: "center",
+    clipPath: appState.clipPath || null,
+    cornerStyle: "circle",
+    cornerColor: "#ffffff",
+    cornerStrokeColor: "#111111",
+    transparentCorners: false,
+    cornerSize: 12,
+    borderColor: "rgba(255,255,255,0.9)",
+    borderDashArray: [4, 4],
+    padding: 0,
+    hoverCursor: "move",
+    moveCursor: "move"
+  });
+
+  image.setControlsVisibility({
+    mt: false,
+    mb: false,
+    ml: false,
+    mr: false,
+    mtr: false
+  });
+}
 // ============================
 // CENTER GUIDELINES WITH SNAPPING
 // ============================
@@ -447,6 +870,8 @@ document.addEventListener("DOMContentLoaded", initWrapSelector);
 window.addEventListener("load", initWrapSelector);
 document.addEventListener("DOMContentLoaded", initMirrorModeToggle);
 window.addEventListener("load", initMirrorModeToggle);
+document.addEventListener("DOMContentLoaded", initCanvasPreviewInteractions);
+window.addEventListener("load", initCanvasPreviewInteractions);
 function initWrapSelector() {
 
   const options = document.querySelectorAll('.wrap-option');
@@ -1924,30 +2349,10 @@ appState.uploadimgsize = +(file.size / (1024 * 1024)).toFixed(2);
         if (imgfileWElement) imgfileWElement.textContent = fabricImg.width;
         if (imgfileHElement) imgfileHElement.textContent = fabricImg.height;
 
-        fabricImg.set({
-          selectable: true,
-          evented: true,
-          hasBorders: false,
-          hasControls: false,
-          lockRotation: true,
-          lockScalingFlip: true,
-          lockUniScaling: true,
-          originX: "center",
-          originY: "center",
-          clipPath: appState.clipPath
-        });
-
-        fabricImg.setControlsVisibility({
-          mt: false,
-          mb: false,
-          ml: false,
-          mr: false,
-          mtr: false
-        });
+        configureEditableImageControls(fabricImg);
 
         canvas.add(fabricImg);
         setMovementConstraints();
-        canvas.setActiveObject(fabricImg);
         canvas.moveTo(fabricImg, 2);
 
         if (!isEdgesEnabled()) {
@@ -1957,7 +2362,9 @@ appState.uploadimgsize = +(file.size / (1024 * 1024)).toFixed(2);
            FitFrontFrame();
         }
 
-        
+        canvas.discardActiveObject();
+        canvas.requestRenderAll();
+        updateCanvasPreviewCursorState();
 
         syncZoomSlider();
       });
@@ -2143,13 +2550,18 @@ function updateZoom(newZoom) {
     }
     
     const finalScale = baseScale * appState.zoom;
+    const currentLeft = appState.uploadedImage.left;
+    const currentTop = appState.uploadedImage.top;
 
     appState.uploadedImage.scaleX = finalScale;
     appState.uploadedImage.scaleY = finalScale;
     appState.scaleFactor = finalScale;
+    appState.uploadedImage.set({
+      left: currentLeft,
+      top: currentTop
+    });
 
     updateMovementConstraints();
-    centerImage();
     appState.uploadedImage.setCoords();
     updatePositionInfo();
     
@@ -2305,233 +2717,6 @@ slider.addEventListener("input", () => handleZoomSlider(slider));
 // zoomInBtn.addEventListener("click", () => updateZoom(appState.zoom + 1));
 // zoomOutBtn.addEventListener("click", () => updateZoom(appState.zoom - 1));
 
-// ===========================================
-// PINCH TO ZOOM FUNCTIONALITY FOR MOBILE
-// ===========================================
-// Variables for pinch zoom
-let initialDistance = 0;
-let initialZoom = 1;
-let lastCenter = { x: 0, y: 0 };
-let isPinching = false;
-let lastTouchTime = 0;
-
-// Function to calculate distance between two touch points
-function getTouchDistance(touch1, touch2) {
-  const dx = touch2.clientX - touch1.clientX;
-  const dy = touch2.clientY - touch1.clientY;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-// Function to calculate center point between two touches
-function getTouchCenter(touch1, touch2) {
-  return {
-    x: (touch1.clientX + touch2.clientX) / 2,
-    y: (touch1.clientY + touch2.clientY) / 2
-  };
-}
-
-// Convert screen coordinates to canvas coordinates
-function screenToCanvas(x, y) {
-  const canvasRect = canvas.getElement().getBoundingClientRect();
-  const zoom = canvas.getZoom();
-  return {
-    x: (x - canvasRect.left) / zoom,
-    y: (y - canvasRect.top) / zoom
-  };
-}
-
-// Touch start event
-canvas.wrapperEl.addEventListener('touchstart', function(e) {
-  if (e.touches.length === 2 && appState.uploadedImage) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const touch1 = e.touches[0];
-    const touch2 = e.touches[1];
-    
-    initialDistance = getTouchDistance(touch1, touch2);
-    initialZoom = appState.scaleFactor || 1;
-    lastCenter = getTouchCenter(touch1, touch2);
-    isPinching = true;
-    
-    // Store the timestamp to prevent double-tap zoom
-    lastTouchTime = Date.now();
-  }
-}, { passive: false });
-
-// Touch move event
-canvas.wrapperEl.addEventListener('touchmove', function(e) {
-  if (e.touches.length === 2 && appState.uploadedImage && isPinching) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const touch1 = e.touches[0];
-    const touch2 = e.touches[1];
-    
-    const currentDistance = getTouchDistance(touch1, touch2);
-    const currentCenter = getTouchCenter(touch1, touch2);
-    
-    // Calculate zoom factor
-    const zoomFactor = currentDistance / initialDistance;
-    const newScale = initialZoom * zoomFactor;
-    
-    // Apply constraints to zoom
-    const minScale = 0.01;
-    const maxScale = 10;
-    const clampedScale = Math.max(minScale, Math.min(maxScale, newScale));
-    
-    // Get canvas center in screen coordinates
-    const canvasRect = canvas.getElement().getBoundingClientRect();
-    const canvasCenterX = canvasRect.left + canvasRect.width / 2;
-    const canvasCenterY = canvasRect.top + canvasRect.height / 2;
-    
-    // Calculate translation (panning during pinch)
-    const deltaX = currentCenter.x - lastCenter.x;
-    const deltaY = currentCenter.y - lastCenter.y;
-    
-    // Apply zoom with pivot at touch center
-    const oldScale = appState.scaleFactor;
-    appState.scaleFactor = clampedScale;
-    
-    // Calculate the scale change
-    const scaleChange = clampedScale / oldScale;
-    
-    // Update the image scale
-    if (appState.uploadedImage) {
-      const img = appState.uploadedImage;
-      
-      // Convert touch center to canvas coordinates relative to image
-      const canvasCoords = screenToCanvas(lastCenter.x, lastCenter.y);
-      
-      // Get current image position and dimensions
-      const imgLeft = img.left;
-      const imgTop = img.top;
-      const imgWidth = img.getScaledWidth();
-      const imgHeight = img.getScaledHeight();
-      
-      // Calculate new position to keep the pinch center point fixed
-      const newLeft = canvasCoords.x - (canvasCoords.x - imgLeft) * scaleChange;
-      const newTop = canvasCoords.y - (canvasCoords.y - imgTop) * scaleChange;
-      
-      // Apply new scale and position
-      img.scaleX = clampedScale;
-      img.scaleY = clampedScale;
-      img.left = newLeft;
-      img.top = newTop;
-      
-      // Also apply additional panning from finger movement
-      img.left += deltaX / canvas.getZoom();
-      img.top += deltaY / canvas.getZoom();
-      
-      img.setCoords();
-    }
-    
-    // Update center for next move
-    lastCenter = currentCenter;
-    
-    // Update everything
-    updateMovementConstraints();
-    updatePositionInfo();
-    syncZoomSlider();
-    canvas.requestRenderAll();
-  } else if (e.touches.length === 1 && appState.uploadedImage && !isPinching) {
-    // Allow single finger panning (fabric.js will handle this)
-    // We just need to update position info
-    requestAnimationFrame(() => {
-      updatePositionInfo();
-    });
-  }
-}, { passive: false });
-
-// Touch end event
-canvas.wrapperEl.addEventListener('touchend', function(e) {
-  if (isPinching) {
-    isPinching = false;
-    
-    // Reset variables
-    initialDistance = 0;
-    initialZoom = 1;
-    lastCenter = { x: 0, y: 0 };
-    
-    // Sync slider with current zoom
-    syncZoomSlider();
-    canvas.requestRenderAll();
-  }
-  
-  // Handle double tap for zoom reset
-  const currentTime = Date.now();
-  const timeDiff = currentTime - lastTouchTime;
-  
-  // if (timeDiff < 300 && e.touches.length === 0 && e.changedTouches.length === 1) {
-  //   // Double tap detected - reset to fit
-  //   if (appState.uploadedImage) {
-  //     fitImageToFrame(true);
-  //   }
-  // }
-  
-  lastTouchTime = currentTime;
-});
-
-// Prevent default touch actions on canvas
-canvas.wrapperEl.style.touchAction = 'none';
-canvas.wrapperEl.style.webkitUserSelect = 'none';
-canvas.wrapperEl.style.userSelect = 'none';
-
-// Also add touch event listeners to the canvas element itself
-canvas.getElement().addEventListener('touchstart', function(e) {
-  if (e.touches.length === 2) {
-    e.preventDefault();
-  }
-}, { passive: false });
-
-canvas.getElement().addEventListener('touchmove', function(e) {
-  if (e.touches.length === 2) {
-    e.preventDefault();
-  }
-}, { passive: false });
-
-// Add pinch zoom indicator (optional visual feedback)
-function showPinchFeedback() {
-  const feedback = document.createElement('div');
-  feedback.style.cssText = `
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0,0,0,0.7);
-    color: white;
-    padding: 10px 20px;
-    border-radius: 20px;
-    font-size: 14px;
-    z-index: 10000;
-    pointer-events: none;
-    transition: opacity 0.3s;
-  `;
-  feedback.textContent = 'Pinch to zoom';
-  document.body.appendChild(feedback);
-  
-  setTimeout(() => {
-    feedback.style.opacity = '0';
-    setTimeout(() => {
-      document.body.removeChild(feedback);
-    }, 300);
-  }, 1500);
-}
-
-// Show pinch hint on mobile devices on first interaction
-if ('ontouchstart' in window && window.innerWidth < 768) {
-  let pinchHintShown = localStorage.getItem('pinchHintShown');
-  if (!pinchHintShown) {
-    setTimeout(() => {
-      if (appState.uploadedImage) {
-        showPinchFeedback();
-        localStorage.setItem('pinchHintShown', 'true');
-      }
-    }, 2000);
-  }
-}
-
-
 window.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
   const toolParam = params.get("tool");
@@ -2633,23 +2818,15 @@ if (shouldDisableSizes) {
           appState.uploadedImage = img;
           appState.cropState = { isCropped: false, backup: null, isSelecting: false, selectionRect: null };
           updateCropButtonState();
-          appState.uploadedImage.set({
-            selectable: true,
-            hasBorders: false,
-            hasControls: false,
-            lockRotation: true,
-            lockScalingFlip: true,
-            lockUniScaling: true,
-            originX: "center",
-            originY: "center",
-            clipPath: appState.clipPath,
-          });
+          configureEditableImageControls(appState.uploadedImage);
 
           canvas.add(appState.uploadedImage);
           setMovementConstraints(); // Add this
-          canvas.setActiveObject(appState.uploadedImage);
           canvas.moveTo(appState.uploadedImage, 2);
-          FitFrontFrame();;
+          FitFrontFrame();
+          canvas.discardActiveObject();
+          canvas.requestRenderAll();
+          updateCanvasPreviewCursorState();
         });
         document.querySelectorAll(".image-conform-btn").forEach(div => {
           div.style.pointerEvents = "auto";
@@ -3541,17 +3718,7 @@ formData.append("page_url", currentPageUrl);
       appState.uploadedImage = img;
       appState.cropState = { isCropped: false, backup: null, isSelecting: false, selectionRect: null };
       updateCropButtonState();
-      appState.uploadedImage.set({
-        selectable: true,
-        hasBorders: false,
-        hasControls: false,
-        lockRotation: true,
-        lockScalingFlip: true,
-        lockUniScaling: true,
-        originX: "center",
-        originY: "center",
-        clipPath: appState.clipPath || null
-      });
+      configureEditableImageControls(appState.uploadedImage);
 
       canvas.add(appState.uploadedImage);
 
@@ -3563,7 +3730,8 @@ formData.append("page_url", currentPageUrl);
       }
 
       setMovementConstraints();
-      canvas.setActiveObject(appState.uploadedImage);
+      canvas.discardActiveObject();
+      updateCanvasPreviewCursorState();
       canvas.renderAll();
 
       // fitImageToFrame(true);

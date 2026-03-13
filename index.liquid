@@ -398,6 +398,13 @@
   line-height: 1.4;
   text-align: right;
 }
+
+.canvas-wrap {
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+}
+
 #price-sale-text{
     font-weight: 900;
     font-size: 24px;
@@ -2636,8 +2643,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
-{{ 'canvas-pdp-v4.js' | asset_url | script_tag }}
-{{ 'pdp-canvas-zoom.js' | asset_url | script_tag }}
+{{ 'P2P.js' | asset_url | script_tag }}
 <script>
 function openCity(evt, cityName) {
   var i, tabcontent, tablinks;
