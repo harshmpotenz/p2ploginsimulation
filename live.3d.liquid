@@ -1,0 +1,2479 @@
+<style>
+.canvas.canvas-preview > div:empty{
+  display: block !important;
+}
+.canvas-controls{
+  margin-top: 200px;
+  display: none !important;
+  color: black;
+  background: white;
+}
+   #threeContainer {
+            width: 100%;
+            height: 100%;
+            background:#090909;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #threeContainer {
+            touch-action: none;
+        }
+
+.canvas-right-preview-wrap{
+    perspective: 1000px;
+  }
+/* Center the scenes */
+.scene-wrapper {
+  display: flex;
+  gap: 50px;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+.preview-title-wrap h3{
+font-weight: 700;
+font-size: 36px;
+line-height: 140%;
+text-align: center;
+text-transform: capitalize;
+color: #1F8FE5;
+margin: 0px;
+width : max-content;
+}
+.preview-title-wrap{
+      margin: 0px 0px 30px 0px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 1040px;
+    position: relative;
+}
+.preview-title-wrap > span{ 
+  display: flex;
+  {% comment %} justify-content: space-between; {% endcomment %}
+  {% comment %} max-width: 450px; {% endcomment %}
+  width: max-content;
+      flex-wrap: wrap;
+   gap: 30px;
+   border: 2px solid #1F8FE5;
+   background-color: #1F8FE51A;
+   padding: 12px 22px;
+  align-items: center;
+}
+.preview-title-wrap > span > span{ 
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.preview-title-wrap > span > span > span:first-child{ 
+  font-weight: 700;
+  font-size: 24px;
+  line-height: 140%;
+  color: #ffffff;
+}
+.preview-title-wrap > span > span > span:nth-child(2){ 
+  font-family: Instrument Sans;
+font-size: 16px;
+line-height: 140%;
+text-decoration: line-through;
+color: #FFFFFF99;
+
+}
+.preview-title-wrap > span > span > span:last-child{ 
+font-family: Instrument Sans;
+font-weight: 600;
+font-size: 12px;
+line-height: 140%;
+padding: 2px 6px;
+background : #00801F;
+color: #ffffff;
+}
+.preview-title-wrap p{
+font-weight: 500;
+font-size: 20px;
+margin: 0px;
+line-height: 140%;
+text-align: center;
+text-transform: capitalize;
+color: #FFFFFF;
+Width: max-content;
+}
+
+.scene {
+  perspective: 1000px;
+   background: #F9F9F9;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Center the canvas horizontally */
+  width: 100%;
+  max-width: 650px; 
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  {% comment %} border-radius: 20px; {% endcomment %} 
+      padding: 20px;
+}
+.note-text-preview{
+  align-self : flex-start;
+  width: 100%;
+}
+
+.scene h3 {
+  color: black;
+  margin: 0;
+  margin: 0px 0px 20px 0px;
+  text-align: center; /* Center the title */
+  width: 100%;
+}
+
+.canvas {
+  position: relative;
+  transform-style: preserve-3d;
+  transform-origin: center center; /* Center rotation point */
+}
+
+.face {
+  position: absolute;
+  backface-visibility: hidden;
+  background-repeat: no-repeat;
+  background-color: white;
+}
+
+.front { box-shadow: 0 30px 45px rgba(0,0,0,0.35); }
+
+.left {
+  transform-origin: left center;
+  transform: rotateY(-90deg);
+  filter: brightness(0.85);
+}
+
+.right {
+  transform-origin: left center;
+  transform: rotateY(90deg);
+  filter: brightness(0.85);
+}
+
+.top {
+  transform-origin: top center;
+  transform: rotateX(90deg);
+  filter: brightness(0.9);
+}
+
+.bottom {
+  transform-origin: top center;
+  transform: rotateX(-90deg);
+  filter: brightness(0.75);
+}
+
+@media (max-width: 680px) {
+  .scene-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
+  
+  .scene {
+    max-width: 90vw; /* Use viewport width on mobile */
+  }
+  
+  .scene h3 {
+    font-size: 18px;
+  }
+}
+
+input[type="number"] {
+  width: 90px;
+}
+
+.canvas-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.canvas-popup-overlay.active {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+}
+
+.canvas-popup {
+  background: #000;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.popup-close {
+  background: #FF000033;
+  border: none;
+  padding: 12px 24px;
+  font-family: Instrument Sans;
+  font-weight: 500;
+  font-size: 20px;
+  line-height: 140%;
+  text-align: center;
+  text-transform: capitalize;
+  cursor: pointer;
+  z-index: 99;
+  color: white;
+  transition : all ease 0.3s;
+  position : absolute;
+  top: 0;
+  right: 0;
+}
+.popup-close:hover{
+  background :rgba(255, 0, 0, 0.41);
+}
+.canvas-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  font-size: 24px;
+  color: #333;
+  display: none;
+}
+
+.canvas-loading-overlay.active {
+  display: flex !important;
+}
+
+.canvas-loading-spinner {
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #333;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg);}
+  100% { transform: rotate(360deg);}
+}
+
+.custom-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #333;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 4px;
+  z-index: 10000;
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.custom-toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* Center the scenes container */
+.scenes-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 100%;
+}
+.canvas-front-preview-wrap .canvas-preview{
+  display: flex;
+  align-items: center;
+    justify-content: center;
+}
+
+.note-text-preview p{
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 140%;
+  color: #DE000B;
+  background-color: #FFECEE;
+  padding: 8px 12px;
+}
+
+.scene-main-wrapper{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 1040px;
+  }
+
+/* No Image Message Styling */
+.no-image-message {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.85);
+  color: white;
+  padding: 30px 40px;
+  border-radius: 10px;
+  z-index: 10000;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  display: none;
+}
+
+.no-image-message.active {
+  display: block;
+  animation: fadeIn 0.3s ease;
+}
+
+.no-image-message h3 {
+  color: #fff;
+  margin-bottom: 15px;
+  font-size: 20px;
+}
+
+.no-image-message p {
+  color: #ddd;
+  margin-bottom: 20px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.no-image-message .close-message-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 25px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.3s ease;
+}
+
+.no-image-message .close-message-btn:hover {
+  background: #0056b3;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translate(-50%, -45%); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+
+
+/* Main container with tabs on the right */
+.preview-display-container {
+  display: flex;
+  gap: 30px;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* Hide non-active scenes */
+.scene {
+  display: none;
+  perspective: 1000px;
+   background: #F9F9F9;
+  flex-direction: column;
+  align-items: center;
+  min-height: 400px;
+  width: 100%;
+  height: calc(100svh - 400px);
+  justify-content: center;
+  border: 2px solid #FFFFFF1A;
+  {% comment %} border: 2px solid rgba(255, 255, 255, 0.1); {% endcomment %}
+  {% comment %} border-radius: 20px; {% endcomment %}
+  padding: 20px;
+  {% comment %} aspect-ratio: 1; {% endcomment %}
+  Width : 100%;
+  max-width: 1040px;
+}
+
+.scene.active-scene {
+  display: flex;
+}
+
+/* Vertical tabs on the right */
+.preview-tabs {
+  display: flex;
+  {% comment %} grid-template-columns: 1fr 1fr 1fr 1fr 1fr; {% endcomment %}
+  {% comment %} flex-direction: column; {% endcomment %}
+  gap: 10px;
+  {% comment %} min-width: 150px; {% endcomment %}
+   Width: 100%;
+}
+
+.preview-tab {
+  background: #FFFFFF0D;
+  border: none;
+  {% comment %} border: 2px solid rgba(255, 255, 255, 0.2); {% endcomment %}
+  {% comment %} border-radius: 10px; {% endcomment %}
+  padding: 10px;
+  max-height :114px;
+  width: 100%;
+  {% comment %} width: 114px; {% endcomment %}
+  height: 100%;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: Instrument Sans;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 140%;
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.preview-tab:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.preview-tab.active {
+border: 1px solid #FFFFFF;
+}
+.scene-inner-wrapper{
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 10px;
+  align-items: start;
+  width: 100%;
+}
+@media screen and (max-width: 980px){
+  .scenes-container{
+        justify-content: flex-start;
+  }
+  .scene-main-wrapper{
+    padding-bottom: 10vh;
+  }
+  .scene-wrapper {
+    display: flex;
+    gap: 50px;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    flex-direction: column;
+  }
+  
+  .no-image-message {
+    padding: 20px 25px;
+    max-width: 90%;
+  }
+  
+  .no-image-message h3 {
+    font-size: 18px;
+  }
+  
+  .no-image-message p {
+    font-size: 14px;
+  }
+  .scene {
+  display: none;
+  perspective: 1000px;
+  background: #F9F9F9;
+  flex-direction: column;
+  align-items: center;
+  min-height: 250px;
+  max-height: 400px;
+  width: 100%;
+  height: calc(100svh - 250px);
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  {% comment %} border-radius: 20px; {% endcomment %}
+  padding: 10px;
+  {% comment %} aspect-ratio: 1; {% endcomment %}
+}
+} 
+/* Mobile adjustments */
+@media screen and (max-width: 980px) {
+  .preview-display-container {
+    flex-direction: column-reverse;
+    gap: 20px;
+  }
+
+  .preview-tabs {
+    flex-direction: row;
+    width: 100%;
+    min-width: unset;
+    overflow-x: auto;
+  }
+
+  .preview-tab {
+    {% comment %} min-width: 120px; {% endcomment %}
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+{% comment %} 
+  .scene {
+    max-width: 90vw;
+  } {% endcomment %}
+  .popup-close{
+    font-size: 16px;
+  }
+    .preview-title-wrap h3 {
+    margin-top: 50px;
+    font-size: 24px;
+  }
+}
+@media (max-width: 480px) {
+  .preview-title-wrap{
+    gap: 15px;
+  }
+  .preview-title-wrap p{
+    font-size: 16px;
+  }
+  .preview-title-wrap > span > span > span:first-child{ 
+  font-size: 18px;
+}
+.preview-title-wrap > span > span > span:nth-child(2){ 
+font-size: 12px;
+}
+.preview-title-wrap > span > span > span:last-child{ 
+font-size: 10px;
+}
+.preview-title-wrap > span{ 
+  width: 100%;
+           gap: 15px;
+   padding: 8px 16px;
+       flex-wrap: wrap;
+}
+  .preview-tab{
+    font-size: 12px;
+  }
+  .note-text-preview p{
+    font-size: 14px;
+  }
+  .popup-close{
+    font-size: 14px;
+  }
+}
+#context1{
+  width: 100%;
+  height: 100%;
+  max-height: 700px;
+}
+.canvas-stage{
+  width: 100%;
+  height: 100%;
+  max-height: 700px;
+}
+#stageCanvas{
+  width: 100%;
+  height: 100%;
+  max-height: 700px;
+
+}
+</style>
+
+<!-- No Image Message Modal -->
+<div class="no-image-message" id="noImageMessage">
+  <h3>No Image Uploaded</h3>
+  <p>Please upload an image first to preview the canvas wrap.</p>
+  <button class="close-message-btn" id="closeNoImageMessage">OK</button>
+</div>
+
+<!-- POPUP -->
+<div class="canvas-popup-overlay" id="canvasPopup">
+  <div class="canvas-popup">
+    
+    <div class="scenes-container">
+      <!-- Controls -->
+      <div class="canvas-controls">
+        <h3>Canvas Wrap Controls</h3>
+           <label>📤 Upload</label>
+        <input type="file" id="upload" accept="image/*">
+        <label>Front Width <input type="number" id="fWidth" ></label>
+        <label>Front Height <input type="number" id="fHeight" ></label>
+          <label>Orig Front Width <input type="number" id="ofWidth" ></label>
+          <label>Orig Front Height <input type="number" id="ofHeight" ></label>
+        <label>Depth <input type="number" id="depth" ></label><br>
+
+        <label>Preview Ratio <input type="number" id="ratio"  step="0.1"></label>
+        <label>Scale <input type="number" id="scale"  step="0.1"></label><br>
+
+        <label>Horizontal Offset <input type="number" id="leftOffset" > (positive = right)</label><br>
+        <label>Vertical Offset <input type="number" id="topOffset" > (positive = down)</label>
+<label>⬆️ Background Top <input type="number" id="bgTop" value="0" step="1"></label>
+<label>⬅️ Background Left <input type="number" id="bgLeft" value="0" step="1"></label>
+
+        <h4>Image Size</h4>
+
+        <label>Image Width <input type="number" id="imgWidth"></label>
+        <label>Image Height <input type="number" id="imgHeight"></label><br>
+
+        <label>Canvas Img Width <input type="number" id="canvasImgWidth"></label>
+        <label>Canvas Img Height <input type="number" id="canvasImgHeight"></label><br>
+        <label>Preview Img Width <input type="number" id="previewImgWidth"></label>
+        <label>Preview Img Height <input type="number" id="previewImgHeight"></label><br>
+        <label>Back Fold (px) <input type="number" id="backFold" value="125"></label>
+
+        <label><input type="checkbox" id="lockAspect" checked> Lock Aspect</label>
+        <label><input type="checkbox" id="useCustomSize" checked> Use Custom Image Size</label>
+
+          <label>📏 Scale</label>
+          <div class="range-with-value">
+              <input type="range" id="scale" min="0.01" max="1" step="0.01" value="0.2">
+              <span id="scaleValue">0.20</span>
+          </div>
+
+          <label>🔍 Zoom</label>
+          <div class="range-with-value">
+              <input type="range" id="zoom" min="0.5" max="2" step="0.01" value="1">
+              <span id="zoomValue">1.00</span>
+          </div>
+
+          <label>⬇️ Distance from floor</label>
+          <div class="range-with-value">
+              <input type="range" id="frameBottom" min="0" max="600" step="1" value="300">
+              <span id="bottomValue">300px</span>
+          </div>
+      </div>
+      
+      <!-- Loading -->
+      <div class="canvas-loading-overlay" id="canvasLoading">
+        <div class="canvas-loading-spinner"></div>
+      </div>
+        <div class="preview-title-wrap">
+          <h3>Canvas Preview</h3>
+            {% if product.compare_at_price > product.price %}
+              {% assign discount = product.compare_at_price | minus: product.price %}
+              {% assign discount_percentage = discount | times: 100 | divided_by: product.compare_at_price %}
+            {% endif %}
+
+           <span><p>Selected size: <span class="selected-size"></span></p>
+          <span>
+            <span class="main-price">{{ product.price | money}}</span>
+            <span class="compare-price">{{ product.compare_at_price | money }}</span>
+            <span class="save-percentage">Save {{ discount_percentage  }}%</span>
+          </span>
+        </span>
+              <button class="popup-close" id="closeCanvasPopup">Exit Preview</button>
+        </div>
+      <!-- Scenes -->
+      <div class="scene-main-wrapper">
+        <div class="scene-inner-wrapper">
+  <div class="preview-display-container">
+    <!-- Single Display Area (LEFT SIDE) -->
+    <div class="scene active-scene" id="frontScene">
+      {% comment %} <h3>Front Preview</h3> {% endcomment %}
+      <div class="canvas-front-preview-wrap">
+        <div class="canvas canvas-preview" data-angle="front">
+          <div class="face front"></div>
+          <div class="face left"></div>
+          <div class="face right"></div>
+          <div class="face top"></div>
+          <div class="face bottom"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scene" id="rightScene" style="display: none;">
+      {% comment %} <h3>Right Side Preview</h3> {% endcomment %}
+      <div class="canvas-right-preview-wrap">
+        <div class="canvas canvas-preview" data-angle="right">
+          <div class="face front"></div>
+          <div class="face left"></div>
+          <div class="face right"></div>
+          <div class="face top"></div>
+          <div class="face bottom"></div>
+        </div>
+      </div>
+    </div>
+
+     {% comment %} <div class="scene" id="context1" style="display: none;">
+          <div class="canvas-stage" id="canvasStage">
+        <canvas id="stageCanvas"></canvas>
+    </div> 
+    </div>{% endcomment %}
+  </div>
+
+  <!-- Vertical Tabs (RIGHT SIDE) -->
+  <div class="preview-tabs">
+    <button class="preview-tab active" data-target="frontScene">
+      <span>Front View</span>
+    </button>
+    <button class="preview-tab" data-target="rightScene">
+      <span>Right Side</span>
+    </button>
+    {% comment %} <button class="preview-tab" data-target="context1">
+      <span>Context 1</span>
+    </button> {% endcomment %}
+  </div>
+</div>
+      <div class="note-text-preview">
+        <p><span>Note: </span>We can't guarantee exact placement since the canvas is manually stretched.</p>
+      </div>
+
+
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+ <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+   
+<script>
+(function() {
+  'use strict';
+
+  // ============================================
+  // GLOBAL VARIABLES (shared across functions)
+  // ============================================
+  let imageURL = null;
+  let origW = 0;
+  let origH = 0;
+  let aspect = 1;
+  let isImageLoaded = false;
+  let currentImageLoading = null;
+  let loadedImg = null;
+  let imageSrc = null;
+  let imageRatio = 1; // width/height
+  
+  // Three.js globals
+  let scene, camera, renderer, wrapGroup, currentMesh;
+  const container = document.getElementById("threeContainer");
+
+  // DOM elements
+  const upload = document.getElementById("upload");
+  const canvases = document.querySelectorAll(".canvas-preview");
+  const fWidthInput = document.getElementById("fWidth");
+  const fHeightInput = document.getElementById("fHeight");
+  const origfWidthInput = document.getElementById("ofWidth");
+  const origfHeightInput = document.getElementById("ofHeight");
+  const depthInput = document.getElementById("depth");
+  const ratioInput = document.getElementById("ratio");
+  const scaleInput = document.getElementById("scale");
+  const leftOffsetInput = document.getElementById("leftOffset");
+  const topOffsetInput = document.getElementById("topOffset");
+ 
+  const imgWidthInput = document.getElementById("imgWidth");
+  const imgHeightInput = document.getElementById("imgHeight");
+  const canvasImgWidthInput = document.getElementById("canvasImgWidth");
+  const canvasImgHeightInput = document.getElementById("canvasImgHeight");
+  const previewImgWidthInput = document.getElementById("previewImgWidth");
+  const previewImgHeightInput = document.getElementById("previewImgHeight");
+  const lockAspect = document.getElementById("lockAspect");
+  const useCustomSize = document.getElementById("useCustomSize");
+  const backFoldInput = document.getElementById("backFold");
+  const noImageMessage = document.getElementById("noImageMessage");
+  const closeNoImageMessage = document.getElementById("closeNoImageMessage");
+  const previewBtn = document.querySelector("#preview-popup");
+  const popup = document.getElementById("canvasPopup");
+
+  const zoom = document.getElementById("zoom");
+  const frameBottom = document.getElementById("frameBottom");
+  const bottomValue = document.getElementById("bottomValue");
+  const zoomValue = document.getElementById("zoomValue");
+      
+  const canvasStage = document.getElementById('canvasStage');
+  const stageCanvas = document.getElementById('stageCanvas');
+  const ctx = stageCanvas ? stageCanvas.getContext('2d') : null;
+
+  const REAL_BG_SIZE = { width: 5000, height: 5000 };
+  const BACKGROUND_IMAGE_URL = "https://cdn.shopify.com/s/files/1/0926/7786/5836/files/background_3.png?v=1772096849";
+  const bgImage = new Image();
+  const artImage = new Image();
+  bgImage.src = BACKGROUND_IMAGE_URL;
+  bgImage.onload = () => render();
+  artImage.onload = () => render();
+  
+  // ============================================
+  // UTILITY FUNCTIONS
+  // ============================================
+  function showLoading() {
+    const loadingEl = document.getElementById("canvasLoading");
+    if (loadingEl) loadingEl.classList.add("active");
+    canvases.forEach(canvas => { canvas.style.visibility = 'hidden'; });
+  }
+
+  function hideLoading() {
+    const loadingEl = document.getElementById("canvasLoading");
+    if (loadingEl) loadingEl.classList.remove("active");
+    if (isImageLoaded) {
+      canvases.forEach(canvas => { canvas.style.visibility = 'visible'; });
+    }
+  }
+
+  function showToast(message, duration = 3000) {
+    let toast = document.querySelector(".custom-toast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.className = "custom-toast";
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), duration);
+  }
+
+  function getVal(id) {
+    const el = document.getElementById(id);
+    if (!el) return "";
+    if (el.value !== undefined && el.value !== null && el.value !== "") return el.value;
+    if (el.textContent && el.textContent.trim() !== "") return el.textContent.trim();
+    return "";
+  }
+
+  function checkIfImageExists() {
+    const mainImgWrap = document.querySelector(".main-img-wrap");
+    if (mainImgWrap && (mainImgWrap.dataset?.mainImg || mainImgWrap.getAttribute('data-main-img'))) return true;
+    
+    const uploadedImgs = document.querySelectorAll('img');
+    for (const img of uploadedImgs) {
+      if (img.src && (img.src.includes('base64') || img.src.includes('blob:') || img.src.includes('data:image'))) return true;
+    }
+    
+    const canvases = document.querySelectorAll('canvas');
+    for (const canvas of canvases) {
+      try {
+        const dataURL = canvas.toDataURL();
+        if (dataURL && dataURL.startsWith('data:image')) return true;
+      } catch (e) {}
+    }
+    return false;
+  }
+
+  function findAndLoadImage() {
+    const mainImgWrap = document.querySelector(".main-img-wrap");
+    if (mainImgWrap) {
+      if (mainImgWrap.dataset?.mainImg) return mainImgWrap.dataset.mainImg;
+      if (mainImgWrap.getAttribute('data-main-img')) return mainImgWrap.getAttribute('data-main-img');
+    }
+    
+    const uploadedImgs = document.querySelectorAll('img');
+    for (const img of uploadedImgs) {
+      if (img.src && (img.src.includes('base64') || img.src.includes('blob:') || img.src.includes('data:image'))) return img.src;
+    }
+    
+    const canvases = document.querySelectorAll('canvas');
+    for (const canvas of canvases) {
+      try {
+        const dataURL = canvas.toDataURL();
+        if (dataURL && dataURL.startsWith('data:image')) return dataURL;
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  function setInputsFromSourceIds() {
+    if(fWidthInput) fWidthInput.value = getVal("frm-w");
+    if(fHeightInput) fHeightInput.value = getVal("frm-h");
+    if(origfWidthInput) origfWidthInput.value = getVal("org-w");
+    if(origfHeightInput) origfHeightInput.value = getVal("org-h");
+
+
+    const depthRatio = Number(getVal("r")) || 1;
+    const origWidth = Number(getVal("org-w")) || 0;
+    const origHeight = Number(getVal("org-h")) || 0;
+
+    const largeDimensionPairs = [
+      [2200, 2200], [1800, 1800], [1800, 2200],
+      [2200, 2600], [2400, 3000], [3000, 4200]
+    ];
+    const isLargeOriginal = largeDimensionPairs.some(([w, h]) => (origWidth === w && origHeight === h) || (origWidth === h && origHeight === w));
+
+    let depthValue;
+    if (isLargeOriginal) depthValue = 300 / depthRatio;
+    else depthValue = 125 / depthRatio;
+    if(depthInput) depthInput.value = depthValue;
+
+    if(ratioInput) ratioInput.value = ratioInput.value || 1;
+    if(scaleInput) scaleInput.value = scaleInput.value || 1;
+
+    if(leftOffsetInput) leftOffsetInput.value = getVal("position-left") || 0;
+    if(topOffsetInput) topOffsetInput.value = getVal("position-top") || 0;
+
+    if(canvasImgWidthInput) canvasImgWidthInput.value = getVal("img-width") || 1000;
+    if(canvasImgHeightInput) canvasImgHeightInput.value = getVal("img-height") || 800;
+
+    if(previewImgWidthInput) previewImgWidthInput.value = getVal("img-f-w") || 1000;
+    if(previewImgHeightInput) previewImgHeightInput.value = getVal("img-f-h") || 800;
+    if(imgWidthInput) imgWidthInput.value = getVal("img-file-w") || 1000;
+    if(imgHeightInput) imgHeightInput.value = getVal("img-file-h") || 800;
+  }
+
+  function applyCanvasAngle(canvas) {
+    const angle = canvas.dataset.angle;
+    if (angle === "front") canvas.style.transform = "rotateY(0deg) rotateX(0deg)";
+    if (angle === "right") canvas.style.transform = "rotateY(325deg) rotateX(0deg)";
+  }
+
+  // ============================================
+  // 2D CONTEXT RENDERING FUNCTIONS
+  // ============================================
+  function resizeStageCanvas() {
+    if (!canvasStage || !stageCanvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvasStage.clientWidth;
+    const h = canvasStage.clientHeight;
+    const targetW = Math.max(1, Math.floor(w * dpr));
+    const targetH = Math.max(1, Math.floor(h * dpr));
+    if (stageCanvas.width !== targetW || stageCanvas.height !== targetH) {
+        stageCanvas.width = targetW;
+        stageCanvas.height = targetH;
+    }
+    if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  
+  function drawCover(img, x, y, w, h) {
+    if (!ctx) return;
+    const imgRatio = img.width / img.height;
+    const boxRatio = w / h;
+    let drawW, drawH;
+    if (imgRatio > boxRatio) {
+        drawH = h;
+        drawW = h * imgRatio;
+    } else {
+        drawW = w;
+        drawH = w / imgRatio;
+    }
+    const dx = x + (w - drawW) * 0.5;
+    const dy = y + (h - drawH) * 0.5;
+    ctx.drawImage(img, dx, dy, drawW, drawH);
+  }
+
+  // --- helper: get displayed background ratio (display px / real px) ---
+  function getDisplayedBackgroundRatio() {
+    if (!canvasStage) return 0.1;
+    const rect = canvasStage.getBoundingClientRect();
+    return rect.height / REAL_BG_SIZE.height;
+  }
+
+function calculateContextSettings() {
+  const origWidth = parseInt(origfWidthInput ? origfWidthInput.value : 900, 10) || 900;
+  const origHeight = parseInt(origfHeightInput ? origfHeightInput.value : 900, 10) || 900;
+  
+  // Default values
+  let bgZoom = 1.0;
+  let boxDistance = 300;
+  let boxZoom = 1.0;
+  let bgTop = 0; // Background image top position (px)
+  let bgLeft = 0; // Background image left position (px)
+  
+  // Check if dimensions match (both 900)
+  if (origWidth === 900 && origHeight === 900) {
+    bgZoom = 1.2; // 120%
+    boxDistance = 150; // 150px
+    boxZoom = 2; // 120%
+    bgTop = -50; // Move background up by 50px
+    bgLeft = -30; // Move background left by 30px
+  }
+  // Add more dimension conditions here if needed
+  else if (origWidth === 1200 && origHeight === 1200) {
+    bgZoom = 1.3;
+    boxDistance = 200;
+    boxZoom = 1.3;
+    bgTop = -75;
+    bgLeft = -50;
+  }
+  else if (origWidth === 1800 && origHeight === 1200) {
+    bgZoom = 1.15;
+    boxDistance = 250;
+    boxZoom = 1.15;
+    bgTop = -40;
+    bgLeft = -60;
+  }
+  else if (origWidth === 1600 && origHeight === 2000) {
+    bgZoom = 1.25;
+    boxDistance = 180;
+    boxZoom = 1.25;
+    bgTop = -80;
+    bgLeft = -20;
+  }
+  // Add your other dimension combinations here...
+  
+  return { bgZoom, boxDistance, boxZoom, bgTop, bgLeft };
+}
+
+  // --- mobile detection ---
+  function isMobile() {
+    return window.innerWidth <= 768;
+  }
+  
+  // --- set preview height dynamic (based on controls) ---
+  function adjustPreviewHeight() {
+    const container = document.querySelector('.preview-container');
+    const controls = document.getElementById('controlsPanel');
+    if (!container || !controls) return;
+    const controlsHeight = controls.getBoundingClientRect().height;
+    const viewportHeight = window.innerHeight;
+    let newHeight = viewportHeight - controlsHeight - 60;
+    if (newHeight < 400) newHeight = 400;
+    container.style.height = newHeight + 'px';
+  }
+
+  function render() {
+  if (!canvasStage || !stageCanvas || !ctx) return;
+  
+  resizeStageCanvas();
+  const stageW = canvasStage.clientWidth;
+  
+  const stageH = canvasStage.clientHeight;
+console.log("stageW", stageW);
+     console.log("stageH", stageH);
+
+     
+  ctx.clearRect(0, 0, stageW, stageH);
+
+  // Get calculated settings based on original dimensions
+  const settings = calculateContextSettings();
+  
+  // Use calculated zoom for background OR user zoom if specified
+  // Priority: user zoom input > calculated zoom > default 1
+  let zoomFactor = parseFloat(zoom.value) || 1;
+  
+  // Only auto-apply calculated zoom if user hasn't manually changed it
+  // You can add a flag to track if user has manually adjusted
+  if (!window._userAdjustedZoom) {
+    zoomFactor = settings.bgZoom;
+    if (zoom) zoom.value = settings.bgZoom;
+    if (zoomValue) zoomValue.innerText = settings.bgZoom.toFixed(2);
+  }
+
+  if (bgImage.complete && bgImage.naturalWidth > 0) {
+    ctx.save();
+    
+    // Apply background position (top/left) before scaling
+    // The bgTop and bgLeft are in pixels, we need to scale them with zoom
+    const scaledBgTop = settings.bgTop * zoomFactor;
+    const scaledBgLeft = settings.bgLeft * zoomFactor;
+    
+    // First translate to center, then apply background offset, then scale
+    ctx.translate(stageW * 0.5 + scaledBgLeft, stageH * 0.5 + scaledBgTop);
+    ctx.scale(zoomFactor, zoomFactor);
+    
+    // Draw background centered around the translated point
+    drawCover(bgImage, -stageW * 0.5, -stageH * 0.5, stageW, stageH);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = '#cfd8dc';
+    ctx.fillRect(0, 0, stageW, stageH);
+  }
+  
+  const realCanvasW = parseInt(origfWidthInput ? origfWidthInput.value - 300 : 900, 10) || 900;
+const realCanvasH = parseInt(origfHeightInput ? origfHeightInput.value - 300 : 900, 10) || 900;
+console.log("realCanvasW", realCanvasW);
+     console.log("realCanvasH", realCanvasH);
+
+  const baseRatio = getDisplayedBackgroundRatio();
+  // Use calculated box zoom for display ratio
+  const displayRatio = baseRatio * (window._userAdjustedZoom ? zoomFactor : settings.boxZoom);
+ const leftOffsetmain = document.getElementById("f-l").textContent;
+  const topOffsetmain = document.getElementById("f-t").textContent;
+  // displayed canvas size
+  const frameW = realCanvasW * displayRatio;
+  const frameH = realCanvasH * displayRatio;
+    const framel = leftOffsetmain;
+  const framet = topOffsetmain ;
+console.log("frameW", frameW);
+     console.log("frameH", frameH);
+     console.log("framel",framel, displayRatio);
+     console.log("framet", framet);
+  // product is fixed to regular canvas
+  const frameThick = 0;
+  const innerW = frameW - frameThick * 2;
+  const innerH = frameH - frameThick * 2;
+
+  // image dimensions
+  let imgW = (parseInt(previewImgWidthInput ? previewImgWidthInput.value : 900, 10) || 900) * displayRatio;
+  let imgH = (parseInt(previewImgHeightInput ? previewImgHeightInput.value : 900, 10) || 900) * displayRatio;
+  
+  // base offset for regular canvas wrap simulation
+  const baseOffset = 0 * displayRatio;
+
+   const ratio = +(ratioInput ? ratioInput.value : 1) || 1;
+console.log("ratio", ratio);
+    const origWidth = Number(getVal("org-w")) || 0;
+    console.log("origWidth", origWidth);
+      const origHeight = Number(getVal("org-h")) || 0;
+      console.log("origHeight", origHeight);
+      const depthRatio = Number(getVal("r")) || 1;
+console.log("depthRatio", depthRatio);
+      const largeDimensionPairs = [
+        [2200, 2200], [1800, 1800], [1800, 2200],
+        [2200, 2600], [2400, 3000], [3000, 4200]
+      ];
+      const isLargeOriginal = largeDimensionPairs.some(
+        ([w, h]) => (origWidth === w && origHeight === h) || (origWidth === h && origHeight === w)
+      );
+      console.log("isLargeOriginal", isLargeOriginal);
+     let depthValue, sideDepthMultiplier = 1;
+      if (isLargeOriginal) {
+        depthValue = 300 / depthRatio;
+        sideDepthMultiplier = 0.5;
+      } else {
+        depthValue = 150 / depthRatio;
+        sideDepthMultiplier = 0.84;
+        
+      }
+      
+         console.log("depthValue", depthValue);
+         const depth = depthValue * ratio;
+         
+         console.log("depth", depth);
+         console.log("sideDepthMultiplier", sideDepthMultiplier);
+   
+         const sideDepth = depth * sideDepthMultiplier;
+console.log("sideDepth", sideDepth);
+  const userLeft = leftOffsetInput.value; 
+  const userTop = topOffsetInput.value;
+
+console.log("displayRatio", displayRatio);
+console.log("leftOffsetInput", leftOffsetInput.value );
+console.log("topOffsetInput", topOffsetInput.value );
+console.log("userLeft", userLeft);
+console.log("userTop", userTop);
+  // position frame bottom (with mobile clamp)
+  // Use calculated box distance OR user value
+  let baseBottom = parseFloat(frameBottom ? frameBottom.value : 300) || 300;
+  
+  // Only auto-apply calculated distance if user hasn't manually changed it
+  if (!window._userAdjustedDistance) {
+    baseBottom = settings.boxDistance;
+    if (frameBottom) frameBottom.value = settings.boxDistance;
+    if (bottomValue) bottomValue.innerText = Math.round(settings.boxDistance) + 'px';
+  }
+  
+  if (isMobile()) {
+    const maxMobile = stageH * 0.35;
+    baseBottom = Math.min(baseBottom, maxMobile);
+  }
+  const scaledBottom = baseBottom * zoomFactor;
+
+
+    {% comment %} const frameX = (stageW - frameW) * 0.5;
+    const frameY = stageH - scaledBottom - frameH; {% endcomment %}
+    const frameX = (stageW - frameW) * 0.5;
+    const frameY = stageH - scaledBottom - frameH;
+    const innerX = frameX + frameThick;
+    const innerY = frameY + frameThick;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur = 26;
+    ctx.shadowOffsetY = 14;
+    ctx.fillStyle = '#3b2e1e';
+    ctx.fillRect(frameX, frameY, frameW, frameH);
+    ctx.restore();
+    
+    ctx.fillStyle = '#FFF';
+    ctx.fillRect(innerX, innerY, innerW, innerH);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(innerX, innerY, innerW, innerH);
+    ctx.clip();
+
+    const frameleft =  userLeft * displayRatio;
+    const frametop =  userTop * displayRatio;
+    const edgew = depth * displayRatio;
+    
+    console.log("edgew", edgew);
+    console.log("frameleft", frameleft);
+    console.log("frametop", frametop);
+    const artX = frameX;
+    const artY = frameY + 22.94372384937239 ;
+    console.log("frameX", frameX);
+    console.log("frameY", frameY);
+    console.log("baseOffset", baseOffset);
+    console.log("artX", artX);
+    console.log("artY", artY);
+    if (artImage.complete && artImage.naturalWidth > 0) {
+        ctx.drawImage(artImage, artX, artY, imgW, imgH);
+    } else {
+        const gradient = ctx.createLinearGradient(artX, artY, artX + imgW, artY + imgH);
+        gradient.addColorStop(0, '#d0d5db');
+        gradient.addColorStop(1, '#b8c1cc');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(artX, artY, imgW, imgH);
+    }
+    ctx.restore();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(innerX + 0.5, innerY + 0.5, Math.max(0, innerW - 1), Math.max(0, innerH - 1));
+
+    // --- dynamic max zoom to prevent overflow (nice to have) ---
+    const VH = stageH;
+    const occupied = baseBottom + realCanvasH * baseRatio;
+    const maxZoomCalc = (0.95 * VH) / occupied;
+    const newMax = Math.min(2, Math.max(0.5, maxZoomCalc));
+    if (zoom) {
+        zoom.setAttribute('max', newMax.toFixed(2));
+        if (parseFloat(zoom.value) > newMax) {
+            zoom.value = newMax.toFixed(2);
+            render(); // re-entrant but safe with condition
+        }
+    }
+    if (zoomValue) zoomValue.innerText = parseFloat(zoom ? zoom.value : 1).toFixed(2);
+  }
+
+  // ============================================
+  // THREE.JS INITIALIZATION
+  // ============================================
+  function initThree() {
+    if (!container) {
+      console.error("❌ Three.js container not found!");
+      return;
+    }
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x090909);
+
+    camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 2000);
+    camera.position.set(3, 1.8, 6);
+    camera.lookAt(0, 0, 0);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 1.6));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
+    dirLight.position.set(10, 15, 10);
+    scene.add(dirLight);
+    const frontLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    frontLight.position.set(0, 0, 10);
+    scene.add(frontLight);
+
+    wrapGroup = new THREE.Group();
+    scene.add(wrapGroup);
+    currentMesh = null;
+
+    console.log("✅ Three.js initialized");
+  }
+
+  // ============================================
+  // TEXTURE CREATION
+  // ============================================
+  function makeFaceTexture(img, sx, sy, sw, sh, scaleX, scaleY, side, flipX = false, flipY = false) {
+    if (!img || !img.naturalWidth) {
+      console.warn('⚠️ Invalid image in makeFaceTexture');
+      return new THREE.CanvasTexture(document.createElement('canvas'));
+    }
+
+    const maxSize = 1024;
+    let ix = Math.round(sx * scaleX), iy = Math.round(sy * scaleY);
+    let iw = Math.round(sw * scaleX), ih = Math.round(sh * scaleY);
+    if (iw <= 0 || ih <= 0) {
+      console.warn(`⚠️ Invalid texture dimensions: ${iw}x${ih}`);
+      return new THREE.CanvasTexture(document.createElement('canvas'));
+    }
+
+    const sourceAspect = iw / ih;
+    let texSizeW, texSizeH;
+    if (sourceAspect > 1) {
+      texSizeW = maxSize;
+      texSizeH = Math.max(1, Math.round(maxSize / sourceAspect));
+    } else {
+      texSizeH = maxSize;
+      texSizeW = Math.max(1, Math.round(maxSize * sourceAspect));
+    }
+
+    const cvs = document.createElement("canvas");
+    cvs.width = texSizeW;
+    cvs.height = texSizeH;
+    const ctx = cvs.getContext("2d");
+    ctx.imageSmoothingQuality = "high";
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, texSizeW, texSizeH);
+
+    let srcX = ix, srcY = iy, srcW = iw, srcH = ih;
+    const clipLeft = Math.max(0, -srcX);
+    const clipTop = Math.max(0, -srcY);
+    const clipRight = Math.max(0, srcX + srcW - img.width);
+    const clipBottom = Math.max(0, srcY + srcH - img.height);
+    let destX = (clipLeft / iw) * texSizeW;
+    let destY = (clipTop / ih) * texSizeH;
+    let destW = texSizeW - ((clipLeft + clipRight) / iw) * texSizeW;
+    let destH = texSizeH - ((clipTop + clipBottom) / ih) * texSizeH;
+    srcX += clipLeft;
+    srcY += clipTop;
+    srcW -= clipLeft + clipRight;
+    srcH -= clipTop + clipBottom;
+
+    if (srcW > 0 && srcH > 0 && destW > 0 && destH > 0) {
+      ctx.save();
+      if (flipX) { ctx.scale(-1, 1); ctx.translate(-texSizeW, 0); destX = texSizeW - destX - destW; }
+      if (flipY) { ctx.scale(1, -1); ctx.translate(0, -texSizeH); destY = texSizeH - destY - destH; }
+      ctx.drawImage(img, srcX, srcY, srcW, srcH, destX, destY, destW, destH);
+      ctx.restore();
+    }
+
+    const tex = new THREE.CanvasTexture(cvs);
+    tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.minFilter = tex.magFilter = THREE.LinearFilter;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  // ============================================
+  // MITERED BACKFOLD GEOMETRY
+  // ============================================
+  function createMiteredBackfoldGeometry(isVertical, mainSize, foldSize, flipped = false) {
+    const geometry = new THREE.BufferGeometry();
+    const positions = [];
+    const uvs = [];
+    const m = foldSize;
+
+    if (isVertical) {
+      positions.push(
+        0, -mainSize / 2, 0,
+        m, -mainSize / 2 + m, 0,
+        m, mainSize / 2 - m, 0,
+        0, mainSize / 2, 0
+      );
+      let uv = [0, 0, 1, m / mainSize, 1, 1 - m / mainSize, 0, 1];
+      if (flipped) uv = [1, 0, 0, m / mainSize, 0, 1 - m / mainSize, 1, 1];
+      uvs.push(...uv);
+    } else {
+      positions.push(
+        -mainSize / 2, 0, 0,
+        -mainSize / 2 + m, m, 0,
+        mainSize / 2 - m, m, 0,
+        mainSize / 2, 0, 0
+      );
+      let uv = [0, 0, m / mainSize, 1, 1 - m / mainSize, 1, 1, 0];
+      if (flipped) uv = [0, 1, m / mainSize, 0, 1 - m / mainSize, 0, 1, 1];
+      uvs.push(...uv);
+    }
+
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setIndex([0, 1, 2, 0, 2, 3]);
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+
+  // ============================================
+  // UPDATE THREE.JS PREVIEW
+  // ============================================
+    function updateThreePreview() {
+      if (!loadedImg || !loadedImg.naturalWidth || loadedImg.naturalWidth === 0) {
+        console.log('⚠️ No loaded image available for Three.js preview');
+        return;
+      }
+      if (!wrapGroup || !scene || !renderer) {
+        console.warn('⚠️ Three.js not fully initialized');
+        return;
+      }
+
+      try {
+        wrapGroup.clear();
+
+        const origWidth = Number(getVal("org-w")) || 0;
+        const origHeight = Number(getVal("org-h")) || 0;
+        const depthRatio = Number(getVal("r")) || 1;
+
+        const largeDimensionPairs = [
+          [2200, 2200], [1800, 1800], [1800, 2200],
+          [2200, 2600], [2400, 3000], [3000, 4200]
+        ];
+        const isLargeOriginal = largeDimensionPairs.some(
+          ([w, h]) => (origWidth === w && origHeight === h) || (origWidth === h && origHeight === w)
+        );
+
+        const ratio = +ratioInput.value || 1;
+        let depthValue, sideDepthMultiplier = 1;
+        if (isLargeOriginal) {
+          depthValue = 300 / depthRatio;
+          sideDepthMultiplier = 0.5;
+        } else {
+          depthValue = 150 / depthRatio;
+          sideDepthMultiplier = 0.84;
+        }
+
+        const depth = depthValue * ratio;
+        const backFold = +backFoldInput.value || 25;
+        const frontOuterW = +fWidthInput.value || 900;
+        const frontOuterH = +fHeightInput.value || 600;
+        const fW = (frontOuterW - 2 * depth) / ratio;
+        const fH = (frontOuterH - 2 * depth) / ratio;
+        const d = depth;
+        const bf = Math.min(backFold, depth) / ratio;
+
+        const hw = fW / 200, hh = fH / 200, hd = d / 100;
+
+        let effW, effH;
+        if (useCustomSize.checked) {
+          effW = +canvasImgWidthInput.value || origW;
+          effH = +canvasImgHeightInput.value || origH;
+        } else {
+          const fitScale = Math.max(frontOuterW / ratio / origW, frontOuterH / ratio / origH);
+          effW = origW * fitScale * (+scaleInput.value || 1);
+          effH = origH * fitScale * (+scaleInput.value || 1);
+        }
+        if (effW < 10 || effH < 10 || origW === 0) {
+          console.warn(`⚠️ Invalid effective dimensions: ${effW}x${effH}`);
+          return;
+        }
+
+        const offsetX = (-(+leftOffsetInput.value || 0)) * ratio;
+        const offsetY = (-(+topOffsetInput.value || 0)) * ratio;
+        const scaleX = origW / effW;
+        const scaleY = origH / effH;
+
+
+      // Wooden frame (stretcher bars)
+      const woodMaterial = new THREE.MeshStandardMaterial({
+        color: 0x8b5a2b,
+        roughness: 0.7,
+        metalness: 0.0,
+        polygonOffset: true,
+        polygonOffsetFactor: 1,
+        polygonOffsetUnits: 1
+      });
+
+      const woodThickness = bf / 100;
+      const woodDepth = hd;
+      const woodHeight = fH / 100;
+      const woodWidth = fW / 100;
+      const EPS = 0.00001;
+
+      const leftWood = new THREE.Mesh(new THREE.BoxGeometry(woodThickness, woodHeight, woodDepth), woodMaterial);
+      leftWood.position.set(-hw + woodThickness / 2, 0, -EPS);
+      wrapGroup.add(leftWood);
+
+      const rightWood = new THREE.Mesh(new THREE.BoxGeometry(woodThickness, woodHeight, woodDepth), woodMaterial);
+      rightWood.position.set(hw - woodThickness / 2, 0, -EPS);
+      wrapGroup.add(rightWood);
+
+      const topWood = new THREE.Mesh(new THREE.BoxGeometry(woodWidth, woodThickness, woodDepth), woodMaterial);
+      topWood.position.set(0, hh - woodThickness / 2, -EPS);
+      wrapGroup.add(topWood);
+
+      const bottomWood = new THREE.Mesh(new THREE.BoxGeometry(woodWidth, woodThickness, woodDepth), woodMaterial);
+      bottomWood.position.set(0, -hh + woodThickness / 2, -EPS);
+      wrapGroup.add(bottomWood);
+
+      // Textures
+      const texFront = makeFaceTexture(loadedImg, offsetX + d, offsetY + d, fW, fH, scaleX, scaleY, 'FRONT');
+      const texLeft = makeFaceTexture(loadedImg, offsetX, offsetY + d, d, fH, scaleX, scaleY, 'LEFT');
+      const texRight = makeFaceTexture(loadedImg, offsetX + d + fW, offsetY + d, d, fH, scaleX, scaleY, 'RIGHT');
+      const texTop = makeFaceTexture(loadedImg, offsetX + d, offsetY, fW, d, scaleX, scaleY, 'TOP');
+      const texBottom = makeFaceTexture(loadedImg, offsetX + d, offsetY + d + fH, fW, d, scaleX, scaleY, 'BOTTOM');
+      const texBackLeft = makeFaceTexture(loadedImg, offsetX - bf, offsetY + d, bf, fH, scaleX, scaleY, 'BACKLEFT', false, false);
+      const texBackRight = makeFaceTexture(loadedImg, offsetX + d + fW + d, offsetY + d, bf, fH, scaleX, scaleY, 'BACKRIGHT', false, false);
+      const texBackTop = makeFaceTexture(loadedImg, offsetX + d, offsetY - bf, fW, bf, scaleX, scaleY, 'BACKTOP', false, false);
+      const texBackBottom = makeFaceTexture(loadedImg, offsetX + d, offsetY + d + fH + d, fW, bf, scaleX, scaleY, 'BACKBOTTOM', false, false);
+
+      const zOffset = -0.001;
+      const backFaceZ = -hd/2;
+
+      // Back folds
+      const geoLeft = createMiteredBackfoldGeometry(true, fH / 100, bf / 100, true);
+      const leftMesh = new THREE.Mesh(geoLeft, new THREE.MeshStandardMaterial({ map: texBackLeft, side: THREE.DoubleSide }));
+      leftMesh.position.set(-hw, 0, backFaceZ + zOffset);
+      wrapGroup.add(leftMesh);
+
+      const geoRight = createMiteredBackfoldGeometry(true, fH / 100, bf / 100, false);
+      const rightMesh = new THREE.Mesh(geoRight, new THREE.MeshStandardMaterial({ map: texBackRight, side: THREE.DoubleSide }));
+      rightMesh.position.set(hw, 0, backFaceZ + zOffset);
+      rightMesh.rotation.y = Math.PI;
+      wrapGroup.add(rightMesh);
+
+      const geoTop = createMiteredBackfoldGeometry(false, fW / 100, bf / 100, false);
+      const topMesh = new THREE.Mesh(geoTop, new THREE.MeshStandardMaterial({ map: texBackTop, side: THREE.DoubleSide }));
+      topMesh.position.set(0, hh, backFaceZ + zOffset);
+      topMesh.rotation.x = Math.PI;
+      wrapGroup.add(topMesh);
+
+      const geoBottom = createMiteredBackfoldGeometry(false, fW / 100, bf / 100, true);
+      const bottomMesh = new THREE.Mesh(geoBottom, new THREE.MeshStandardMaterial({ map: texBackBottom, side: THREE.DoubleSide }));
+      bottomMesh.position.set(0, -hh, backFaceZ + zOffset);
+      wrapGroup.add(bottomMesh);
+
+      // Main box
+      if (currentMesh) {
+        currentMesh.geometry.dispose();
+        if (currentMesh.material) {
+          if (Array.isArray(currentMesh.material)) {
+            currentMesh.material.forEach(m => {
+              if (m.map) m.map.dispose();
+              m.dispose();
+            });
+          } else {
+            if (currentMesh.material.map) currentMesh.material.map.dispose();
+            currentMesh.material.dispose();
+          }
+        }
+      }
+
+      const geometry = new THREE.BoxGeometry(fW / 100, fH / 100, d / 100);
+      const materials = [
+        new THREE.MeshStandardMaterial({ map: texRight }),
+        new THREE.MeshStandardMaterial({ map: texLeft }),
+        new THREE.MeshStandardMaterial({ map: texTop }),
+        new THREE.MeshStandardMaterial({ map: texBottom }),
+        new THREE.MeshStandardMaterial({ map: texFront }),
+        new THREE.MeshStandardMaterial({ visible: false })
+      ];
+      currentMesh = new THREE.Mesh(geometry, materials);
+      wrapGroup.add(currentMesh);
+
+      const backingGeo = new THREE.PlaneGeometry(fW / 100, fH / 100);
+      const backingMat = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          roughness: 0.7,
+          metalness: 0.0,
+          side: THREE.DoubleSide
+      });
+
+      const backingMesh = new THREE.Mesh(backingGeo, backingMat);
+      backingMesh.position.set(0, 0, (d / 200) - 0.0005);
+      backingMesh.rotation.y = Math.PI;
+      wrapGroup.add(backingMesh);
+
+      // Keep your rotations
+      wrapGroup.rotation.y = -0.35;
+      wrapGroup.rotation.x = 0.18;
+
+      renderer.render(scene, camera);
+      console.log("✅ Three.js preview updated");
+    } catch (error) {
+      console.error('❌ Error in updateThreePreview:', error);
+    }
+  }
+
+  // ============================================
+  // UPDATE 2D PREVIEW
+  // ============================================
+  function updatePreview() {
+    if (!imageURL) {
+      return;
+    }
+
+    const origWidth = Number(getVal("org-w")) || 0;
+    const origHeight = Number(getVal("org-h")) || 0;
+    const depthRatio = Number(getVal("r")) || 1;
+
+    const largeDimensionPairs = [
+      [2200, 2200], [1800, 1800], [1800, 2200],
+      [2200, 2600], [2400, 3000], [3000, 4200]
+    ];
+    const isLargeOriginal = largeDimensionPairs.some(
+      ([w, h]) => (origWidth === w && origHeight === h) || (origWidth === h && origHeight === w)
+    );
+
+    let depthValue, sideDepthMultiplier = 1;
+    if (isLargeOriginal) {
+      depthValue = 300 / depthRatio;
+      sideDepthMultiplier = 0.5;
+    } else {
+      depthValue = 150 / depthRatio;
+      sideDepthMultiplier = 0.84;
+    }
+
+    const ratio = +(ratioInput ? ratioInput.value : 1) || 1;
+    const depth = depthValue * ratio;
+    const sideDepth = depth * sideDepthMultiplier;
+
+    const fW = ((+(fWidthInput ? fWidthInput.value : 500) || 500) - 2 * depthValue) * ratio;
+    const fH = ((+(fHeightInput ? fHeightInput.value : 400) || 400) - 2 * depthValue) * ratio;
+
+    const scale = +(scaleInput ? scaleInput.value : 1) || 1;
+    const offsetX = (-(+(leftOffsetInput ? leftOffsetInput.value : 0) || 0)) * ratio;
+    const offsetY = (-(+(topOffsetInput ? topOffsetInput.value : 0) || 0)) * ratio;
+
+    let effW, effH;
+    if (useCustomSize && useCustomSize.checked) {
+      effW = +(canvasImgWidthInput ? canvasImgWidthInput.value : 1000) || 1000;
+      effH = +(canvasImgHeightInput ? canvasImgHeightInput.value : 800) || 800;
+    } else {
+      effW = origWidth * scale * ratio;
+      effH = origHeight * scale * ratio;
+    }
+
+    canvases.forEach(canvas => {
+      applyCanvasAngle(canvas);
+
+      canvas.style.width = fW + depth + "px";
+      canvas.style.height = fH + depth + "px";
+
+      const front = canvas.querySelector(".front");
+      const left = canvas.querySelector(".left");
+      const right = canvas.querySelector(".right");
+      const top = canvas.querySelector(".top");
+      const bottom = canvas.querySelector(".bottom");
+
+      if (front) {
+        front.style.width = fW + "px";
+        front.style.height = fH + "px";
+      }
+
+      if (left) {
+        left.style.width = sideDepth + "px";
+        left.style.height = fH + "px";
+      }
+
+      if (right) {
+        right.style.width = sideDepth + "px";
+        right.style.height = fH + "px";
+        right.style.left = fW + "px";
+      }
+
+      if (top) {
+        top.style.width = fW + "px";
+        top.style.height = sideDepth + "px";
+      }
+
+      if (bottom) {
+        bottom.style.width = fW + "px";
+        bottom.style.height = sideDepth + "px";
+        bottom.style.top = fH + "px";
+      }
+
+      const faces = [front, left, right, top, bottom];
+
+      faces.forEach((face, index) => {
+        if (!face) {
+          console.error(`Face element missing at index ${index}`);
+          return;
+        }
+
+        let bgUrl = imageURL;
+        if (!bgUrl.startsWith("data:image") && bgUrl.includes(" ")) {
+          bgUrl = encodeURI(bgUrl);
+        }
+
+        face.style.backgroundImage = `url("${bgUrl}")`;
+        face.style.backgroundRepeat = "no-repeat";
+        face.style.backgroundSize = `${effW}px ${effH}px`;
+      });
+
+      if (front) front.style.backgroundPosition = `${-(offsetX + depth)}px ${-(offsetY + depth)}px`;
+      if (left) left.style.backgroundPosition = `${-offsetX}px ${-(offsetY + depth)}px`;
+      if (right) right.style.backgroundPosition = `${-(offsetX + depth + fW)}px ${-(offsetY + depth)}px`;
+      if (top) top.style.backgroundPosition = `${-(offsetX + depth)}px ${-offsetY}px`;
+      if (bottom) bottom.style.backgroundPosition = `${-(offsetX + depth)}px ${-(offsetY + depth + fH)}px`;
+    });
+  }
+
+  // ============================================
+  // LOAD IMAGE
+  // ============================================
+  
+function loadImage(imgSrc) {
+  return new Promise((resolve, reject) => {
+    showLoading();
+    isImageLoaded = false;
+
+    if (currentImageLoading) {
+      currentImageLoading.onload = null;
+      currentImageLoading.onerror = null;
+    }
+
+    const img = new Image();
+    currentImageLoading = img;
+    loadedImg = img;
+    
+    // CRITICAL FIX: Also set the artImage for 2D context
+    artImage.src = imgSrc;
+
+    if (!imgSrc.startsWith('data:') && !imgSrc.startsWith('blob:')) {
+      img.crossOrigin = "anonymous";
+    }
+
+    const timeoutId = setTimeout(() => {
+      console.error("Image loading timeout");
+      hideLoading();
+      reject(new Error("Timeout"));
+    }, 15000);
+
+    img.onload = () => {
+      clearTimeout(timeoutId);
+
+      origW = img.naturalWidth;
+      origH = img.naturalHeight;
+      aspect = origH / origW;
+      isImageLoaded = true;
+      
+      // Update image ratio for 2D context
+      imageRatio = origW / origH;
+
+      if (imgWidthInput) imgWidthInput.value = origW;
+      if (imgHeightInput) imgHeightInput.value = origH;
+
+      if (canvasImgWidthInput && (!canvasImgWidthInput.value || canvasImgWidthInput.value === "0")) {
+        canvasImgWidthInput.value = origW;
+      }
+      if (canvasImgHeightInput && (!canvasImgHeightInput.value || canvasImgHeightInput.value === "0")) {
+        canvasImgHeightInput.value = origH;
+      }
+
+      updatePreview();
+      setTimeout(() => { 
+        updateThreePreview(); 
+        // FIX: Force render 2D context after image loads
+        render();
+      }, 50);
+      hideLoading();
+      resolve(img);
+    };
+
+    img.onerror = (err) => {
+      clearTimeout(timeoutId);
+      console.error("❌ Failed to load image:", err);
+
+      if (imgSrc.startsWith('data:image')) {
+        setTimeout(() => { img.src = imgSrc; }, 500);
+        return;
+      }
+
+      isImageLoaded = false;
+      hideLoading();
+      reject(err);
+    };
+
+    img.src = imgSrc;
+
+    if (img.complete) {
+      img.onload();
+    }
+  });
+}
+function init2DPreview() {
+  if (!stageCanvas || !ctx) return;
+  
+  // Set initial canvas size
+  resizeStageCanvas();
+  
+  // Load background image if not already loaded
+  if (!bgImage.complete) {
+    bgImage.onload = () => {
+      render();
+    };
+  }
+  
+  // Initial render
+  render();
+}
+
+// Call this in your init function (around line 830-850):
+function init() {
+  console.log("🚀 Initializing Canvas Wrap Preview");
+
+  initThree();
+  setupInteractions();
+  setupInputListeners();
+  setupPopupHandling();
+  init2DPreview(); // ADD THIS LINE
+  exposeGlobalCanvasApi();
+  animate();
+
+  // Initial set inputs
+  setTimeout(() => {
+    if (fWidthInput && !fWidthInput.value) {
+      setInputsFromSourceIds();
+    }
+    render(); // Initial render for context1
+  }, 100);
+}
+  async function autoLoadImageToCanvas() {
+    const imgSrc = findAndLoadImage();
+    if (!imgSrc) {
+      hideLoading();
+      return;
+    }
+
+    imageURL = imgSrc;
+
+    try {
+      await loadImage(imgSrc);
+    } catch (error) {
+      console.error("Error loading image:", error);
+    }
+  }
+
+  // ============================================
+  // SETUP INTERACTIONS (DRAG, ZOOM, TABS)
+  // ============================================
+  function setupInteractions() {
+    // Tab switching
+    const tabs = document.querySelectorAll('.preview-tab');
+    tabs.forEach(tab => {
+  tab.addEventListener('click', function() {
+    tabs.forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.scene').forEach(s => {
+      s.classList.remove('active-scene');
+      s.style.display = 'none';
+    });
+
+    this.classList.add('active');
+    const targetId = this.getAttribute('data-target');
+    const targetScene = document.getElementById(targetId);
+    if (targetScene) {
+      targetScene.style.display = 'flex';
+      targetScene.classList.add('active-scene');
+      
+      // Force render when context1 tab is opened
+      if (targetId === 'context1') {
+        // CRITICAL FIX: Ensure canvas is properly sized and rendered
+        setTimeout(() => {
+          resizeStageCanvas();
+          render();
+          
+          // Double-check if artImage is loaded, if not, try to load it
+          if (!artImage.complete && imageURL) {
+            artImage.src = imageURL;
+          }
+        }, 100);
+      } else if (targetId === 'frontScene' || targetId === 'rightScene') {
+        // Force Three.js render for 3D views
+        setTimeout(() => {
+          if (renderer && scene && camera) {
+            renderer.render(scene, camera);
+          }
+        }, 100);
+      }
+    }
+  });
+});
+
+
+    // Touch events for pinch zoom
+    if (container) {
+      let lastTouchDistance = null;
+      let isPinching = false;
+
+      container.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 2) {
+          e.preventDefault();
+          isPinching = true;
+          const dx = e.touches[0].clientX - e.touches[1].clientX;
+          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          lastTouchDistance = Math.hypot(dx, dy);
+        }
+      }, { passive: false });
+
+      container.addEventListener("touchmove", (e) => {
+        if (e.touches.length === 2 && isPinching) {
+          e.preventDefault();
+          const dx = e.touches[0].clientX - e.touches[1].clientX;
+          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          const dist = Math.hypot(dx, dy);
+          if (lastTouchDistance !== null && camera) {
+            const delta = lastTouchDistance - dist;
+            camera.fov = THREE.MathUtils.clamp(camera.fov + delta * 0.08, 15, 110);
+            camera.updateProjectionMatrix();
+          }
+          lastTouchDistance = dist;
+        }
+      }, { passive: false });
+
+      container.addEventListener("touchend", (e) => {
+        if (e.touches.length < 2) {
+          isPinching = false;
+          lastTouchDistance = null;
+        }
+      });
+
+      // Mouse drag
+      let isDragging = false;
+      let previousMouse = { x: 0, y: 0 };
+      container.addEventListener("pointerdown", e => {
+        isDragging = true;
+        previousMouse.x = e.clientX;
+        previousMouse.y = e.clientY;
+        container.style.cursor = "grabbing";
+      });
+
+      window.addEventListener("pointerup", () => {
+        isDragging = false;
+        container.style.cursor = "grab";
+      });
+
+      window.addEventListener("pointermove", e => {
+        if (!isDragging || !wrapGroup || isPinching) return;
+        wrapGroup.rotation.y += (e.clientX - previousMouse.x) * 0.004;
+        wrapGroup.rotation.x += (e.clientY - previousMouse.y) * 0.004;
+        previousMouse.x = e.clientX;
+        previousMouse.y = e.clientY;
+      });
+
+      container.addEventListener("selectstart", e => e.preventDefault());
+      container.addEventListener("wheel", e => {
+        e.preventDefault();
+        if (camera) {
+          camera.fov = THREE.MathUtils.clamp(camera.fov + e.deltaY * 0.06, 20, 110);
+          camera.updateProjectionMatrix();
+        }
+      }, { passive: false });
+    }
+
+    // Resize observer for Three.js
+    if (container && camera && renderer) {
+      const resizeObserver = new ResizeObserver(entries => {
+        for (let entry of entries) {
+          if (entry.target === container && container.offsetParent !== null) {
+            if (camera && renderer) {
+              const width = container.clientWidth;
+              const height = container.clientHeight;
+              if (width > 0 && height > 0) {
+                renderer.setSize(width, height);
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+                renderer.render(scene, camera);
+              }
+            }
+          }
+        }
+      });
+      resizeObserver.observe(container);
+    }
+
+    // Window resize
+    window.addEventListener("resize", () => {
+      if (camera && renderer && container) {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+      }
+      render(); // Also update 2D render on resize
+    });
+  }
+
+  // ============================================
+  // ANIMATION LOOP
+  // ============================================
+  function animate() {
+    requestAnimationFrame(animate);
+    if (renderer && scene && camera) {
+      renderer.render(scene, camera);
+    }
+  }
+
+  // ============================================
+  // INPUT LISTENERS
+  // ============================================
+  function setupInputListeners() {
+    // Upload event listener
+    if (upload) {
+      upload.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const img = new Image();
+        img.onload = () => {
+          imageSrc = img.src;
+          imageRatio = img.naturalWidth / img.naturalHeight;
+          if (imgWidthInput) imgWidthInput.value = img.naturalWidth;
+          if (imgHeightInput) imgHeightInput.value = img.naturalHeight;
+          artImage.src = imageSrc;
+          render();
+        };
+        img.src = URL.createObjectURL(file);
+      });
+    } else {
+      console.error("Upload input not found");
+    }
+
+    if (imgWidthInput) {
+      imgWidthInput.addEventListener("input", () => {
+        if (lockAspect && lockAspect.checked && imgHeightInput && imageRatio) {
+          imgHeightInput.value = Math.round(imgWidthInput.value / imageRatio);
+        }
+        render();
+      });
+    }
+
+    if (imgHeightInput) {
+      imgHeightInput.addEventListener("input", () => {
+        if (lockAspect && lockAspect.checked && imgWidthInput && imageRatio) {
+          imgWidthInput.value = Math.round(imgHeightInput.value * imageRatio);
+        }
+        render();
+      });
+    }
+
+    if (canvasImgWidthInput) {
+      canvasImgWidthInput.addEventListener("input", () => {
+        if (lockAspect && lockAspect.checked && canvasImgHeightInput && aspect) {
+          canvasImgHeightInput.value = Math.round(canvasImgWidthInput.value * aspect);
+        }
+        updatePreview();
+        updateThreePreview();
+      });
+    }
+
+    if (previewImgWidthInput) {
+      previewImgWidthInput.addEventListener("input", () => {
+        if (lockAspect && lockAspect.checked && previewImgHeightInput && aspect) {
+          previewImgHeightInput.value = Math.round(previewImgWidthInput.value * aspect);
+        }
+        updatePreview();
+        updateThreePreview();
+      });
+    }
+
+
+    if (canvasImgHeightInput) {
+      canvasImgHeightInput.addEventListener("input", () => {
+        if (lockAspect && lockAspect.checked && canvasImgWidthInput && aspect) {
+          canvasImgWidthInput.value = Math.round(canvasImgHeightInput.value / aspect);
+        }
+        updatePreview();
+        updateThreePreview();
+      });
+    }
+
+     if (previewImgHeightInput) {
+      previewImgWidthInput.addEventListener("input", () => {
+        if (lockAspect && lockAspect.checked && previewImgHeightInput && aspect) {
+          previewImgHeightInput.value = Math.round(previewImgWidthInput.value / aspect);
+        }
+        updatePreview();
+        updateThreePreview();
+      });
+    }
+    const inputElements = [
+      fWidthInput, fHeightInput, depthInput, ratioInput, scaleInput,
+      leftOffsetInput, topOffsetInput, backFoldInput
+    ];
+    
+    inputElements.forEach(el => {
+      if (el) {
+        el.addEventListener("input", function() {
+          updatePreview();
+          updateThreePreview();
+        });
+      }
+    });
+
+    if (lockAspect) {
+      lockAspect.addEventListener("change", () => {
+        render();
+        updatePreview();
+        updateThreePreview();
+      });
+    }
+
+    if (useCustomSize) {
+      useCustomSize.addEventListener("change", () => {
+        updatePreview();
+        updateThreePreview();
+      });
+    }
+
+    if (scaleInput) {
+      scaleInput.addEventListener('input', () => {
+        render();
+      });
+    }
+
+      if (zoom) {
+    zoom.addEventListener('input', () => {
+      window._userAdjustedZoom = true;
+      render();
+    });
+  }
+
+  if (frameBottom) {
+    frameBottom.addEventListener('input', () => {
+      window._userAdjustedDistance = true;
+      render();
+    });
+  }
+
+  // Also track when original dimensions change to potentially reset auto values
+  if (origfWidthInput && origfHeightInput) {
+    const handleOrigChange = () => {
+      // Reset user adjustment flags when dimensions change significantly
+      // Only reset if you want to reapply auto settings on dimension change
+      const settings = calculateContextSettings();
+      
+      // Option 1: Reset flags to reapply auto settings
+      // window._userAdjustedZoom = false;
+      // window._userAdjustedDistance = false;
+      
+      // Option 2: Keep user adjustments but update if user hasn't adjusted
+      if (!window._userAdjustedZoom && zoom) {
+        zoom.value = settings.bgZoom;
+        if (zoomValue) zoomValue.innerText = settings.bgZoom.toFixed(2);
+      }
+      if (!window._userAdjustedDistance && frameBottom) {
+        frameBottom.value = settings.boxDistance;
+        if (bottomValue) bottomValue.innerText = Math.round(settings.boxDistance) + 'px';
+      }
+      
+      render();
+    };
+    
+    origfWidthInput.addEventListener('input', handleOrigChange);
+    origfHeightInput.addEventListener('input', handleOrigChange);
+  }
+  }
+
+  // ============================================
+  // POPUP HANDLING
+  // ============================================
+  function setupPopupHandling() {
+    if (previewBtn) {
+      previewBtn.addEventListener("click", async function (e) {
+        e.preventDefault();
+        await openCanvasPreview();
+      });
+    } else {
+      console.error("❌ Preview button not found with selector '#preview-popup'");
+    }
+
+    if (closeNoImageMessage) {
+      closeNoImageMessage.addEventListener("click", () => {
+        if (noImageMessage) noImageMessage.classList.remove("active");
+      });
+    }
+
+    if (noImageMessage) {
+      noImageMessage.addEventListener("click", (e) => {
+        if (e.target === noImageMessage) {
+          noImageMessage.classList.remove("active");
+        }
+      });
+    }
+
+    const closeBtn = document.getElementById("closeCanvasPopup");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => {
+        if (popup) popup.classList.remove("active");
+        isImageLoaded = false;
+        hideLoading();
+      });
+    }
+
+    if (popup) {
+      popup.addEventListener("click", e => {
+        if (e.target === popup) {
+          popup.classList.remove("active");
+          isImageLoaded = false;
+          hideLoading();
+        }
+      });
+    }
+  }
+
+  // ============================================
+  // GLOBAL API (callable from anywhere)
+  // ============================================
+  async function openCanvasPreview() {
+  if (!checkIfImageExists()) {
+    if (noImageMessage) noImageMessage.classList.add("active");
+    return false;
+  }
+
+  if (popup) popup.classList.add("active");
+  showLoading();
+  isImageLoaded = false;
+  imageURL = null;
+  
+  // Reset user adjustment flags when opening preview
+  window._userAdjustedZoom = false;
+  window._userAdjustedDistance = false;
+  
+  setInputsFromSourceIds();
+  await autoLoadImageToCanvas();
+  
+  // Apply initial settings based on dimensions
+  const settings = calculateContextSettings();
+  if (zoom) {
+    zoom.value = settings.bgZoom;
+    if (zoomValue) zoomValue.innerText = settings.bgZoom.toFixed(2);
+  }
+  if (frameBottom) {
+    frameBottom.value = settings.boxDistance;
+    if (bottomValue) bottomValue.innerText = Math.round(settings.boxDistance) + 'px';
+  }
+  
+  // Store background position values for use in render
+  window._currentBgTop = settings.bgTop;
+  window._currentBgLeft = settings.bgLeft;
+  
+  // Ensure context1 renders after opening
+  setTimeout(() => {
+    render();
+  }, 200);
+  
+  return true;
+}
+  
+  async function threedCanvasPreview() {
+    if (!checkIfImageExists()) {
+      if (noImageMessage) noImageMessage.classList.add("active");
+      return false;
+    }
+    showLoading();
+    isImageLoaded = false;
+    imageURL = null;
+    setInputsFromSourceIds();
+    await autoLoadImageToCanvas();
+    return true;
+  }
+
+  function closeCanvasPreview() {
+    if (!popup) return;
+    popup.classList.remove("active");
+    isImageLoaded = false;
+    hideLoading();
+  }
+
+  function exposeGlobalCanvasApi() {
+    const api = {
+      showLoading,
+      hideLoading,
+      showToast,
+      getVal,
+      checkIfImageExists,
+      findAndLoadImage,
+      setInputsFromSourceIds,
+      applyCanvasAngle,
+      initThree,
+      makeFaceTexture,
+      createMiteredBackfoldGeometry,
+      updatePreview,
+      updateThreePreview,
+      loadImage,
+      autoLoadImageToCanvas,
+      setupInteractions,
+      setupInputListeners,
+      setupPopupHandling,
+      render, // Expose render function
+      open: openCanvasPreview,
+      close: closeCanvasPreview,
+      threedopen: threedCanvasPreview,
+      init
+    };
+
+    window.Canvas3DPreview = api;
+    window["threedpreview"] = threedCanvasPreview;
+    window["open3dpreview"] = openCanvasPreview;
+    window["close3dpreview"] = closeCanvasPreview;
+  }
+
+  // ============================================
+  // MAIN INITIALIZATION
+  // ============================================
+  function init() {
+    console.log("🚀 Initializing Canvas Wrap Preview");
+
+    initThree();
+    setupInteractions();
+    setupInputListeners();
+    setupPopupHandling();
+    exposeGlobalCanvasApi();
+    animate();
+
+    // Initial set inputs
+    setTimeout(() => {
+      if (fWidthInput && !fWidthInput.value) {
+        setInputsFromSourceIds();
+      }
+      render(); // Initial render for context1
+    }, 100);
+  }
+
+  // Start everything when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+  
+  // Split view functionality (only if elements exist)
+const toggle = document.getElementById("toggleSplit");
+const divider = document.getElementById("divider");
+const containersplit = document.getElementById("splitView");
+
+if (toggle && divider && containersplit) {
+
+  const left = containersplit.querySelector(".canvas-panel.left-panel");
+  const right = containersplit.querySelector(".canvas-panel.right-panel");
+
+  let isDragging = false;
+
+  function applyLayout() {
+
+    const isMobile = window.innerWidth <= 900;
+
+    if (toggle.checked) {
+
+      // DESKTOP
+      if (!isMobile) {
+
+        if (left) left.style.width = "50%";
+        if (right) right.style.width = "50%";
+
+        if (right) {
+          right.classList.remove("hide-wrap");
+          right.classList.add("show-flex");
+        }
+
+        if (divider) {
+          divider.classList.remove("hide-wrap");
+          divider.classList.add("show-flex");
+        }
+
+      }
+
+      // MOBILE → SHOW ONLY 3D
+      else {
+
+        if (left) {
+          left.style.width = "0%";
+          left.classList.add("hide-wrap");
+        }
+
+        if (right) {
+          right.style.width = "100%";
+          right.classList.remove("hide-wrap");
+          right.classList.add("show-flex");
+        }
+
+        if (divider) divider.classList.add("hide-wrap");
+      }
+
+      setTimeout(() => {
+        if (right && container) {
+          const rect = right.getBoundingClientRect();
+          container.style.width = rect.width + "px";
+          container.style.height = rect.height + "px";
+        }
+      }, 100);
+
+    } else {
+
+      // SHOW ONLY CANVAS
+
+      if (left) {
+        left.style.width = "100%";
+        left.classList.remove("hide-wrap");
+      }
+
+      if (right) {
+        right.classList.add("hide-wrap");
+        right.classList.remove("show-flex");
+      }
+
+      if (divider) {
+        divider.classList.add("hide-wrap");
+        divider.classList.remove("show-flex");
+      }
+
+      setTimeout(() => {
+        if (left && container) {
+          const rect = left.getBoundingClientRect();
+          container.style.width = rect.width + "px";
+          container.style.height = rect.height + "px";
+        }
+      }, 100);
+    }
+  }
+
+  // TOGGLE
+  toggle.addEventListener("change", function () {
+
+    applyLayout();
+
+    if (this.checked) {
+
+      if (!checkIfImageExists()) {
+        if (noImageMessage) noImageMessage.classList.add("active");
+        return;
+      }
+
+      setTimeout(resizeThree, 100);
+      showLoading();
+      isImageLoaded = false;
+      imageURL = null;
+      setInputsFromSourceIds();
+
+      setTimeout(() => {
+        autoLoadImageToCanvas();
+      }, 100);
+    }
+  });
+
+  function resizeThree() {
+    if (right && renderer && camera && container) {
+      const rect = right.getBoundingClientRect();
+      container.style.width = rect.width + "px";
+      container.style.height = rect.height + "px";
+      renderer.setSize(rect.width, rect.height);
+      camera.aspect = rect.width / rect.height;
+      camera.updateProjectionMatrix();
+    }
+  }
+
+  // MOUSE DOWN
+  divider.addEventListener("mousedown", function () {
+
+    if (!toggle.checked) return;
+    if (window.innerWidth <= 900) return; // disable drag on mobile
+
+    isDragging = true;
+  });
+
+  // MOUSE MOVE
+  document.addEventListener("mousemove", function (e) {
+
+    if (!isDragging) return;
+
+    const rect = containersplit.getBoundingClientRect();
+    let offsetX = e.clientX - rect.left;
+    let percent = (offsetX / rect.width) * 100;
+
+    percent = Math.max(30, Math.min(70, percent));
+
+    if (left) left.style.width = percent + "%";
+    if (right) right.style.width = (100 - percent) + "%";
+
+    setTimeout(resizeThree, 100);
+  });
+
+  // MOUSE UP
+  document.addEventListener("mouseup", function () {
+    isDragging = false;
+  });
+
+}
+
+})();
+</script>
+
+{% schema %}
+{
+  "name": "3D Canvas Wrap Preview",
+  "settings": [
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Section Title",
+      "default": "Canvas Wrap Controls"
+    }
+  ],
+  "presets": [
+    {
+      "name": "3D Canvas Wrap"
+    }
+  ]
+}
+{% endschema %}

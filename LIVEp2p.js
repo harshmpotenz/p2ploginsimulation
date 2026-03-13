@@ -1,4 +1,16 @@
-const canvas = new fabric.Canvas("image-canvas");
+const canvas = new fabric.Canvas("image-canvas", {
+  enableRetinaScaling: true
+});
+
+function requestCanvasZoomRecalc() {
+  if (typeof window.recalculateCanvasZoom !== "function") return;
+
+  requestAnimationFrame(() => {
+    window.recalculateCanvasZoom();
+    setTimeout(() => window.recalculateCanvasZoom(), 80);
+    setTimeout(() => window.recalculateCanvasZoom(), 180);
+  });
+}
 
 
 const appState = {
@@ -6,6 +18,8 @@ const appState = {
   innerPadding: 10,
   innerWidth: 400,
   innerHeight: 400,
+  displayWidth: 400,
+  displayHeight: 400,
   selectedWidth: 400,
   selectedHeight: 400,
   uploadedImage: null,
@@ -30,9 +44,35 @@ const appState = {
   newimageleft: 0,
   newimagetop: 0,
   border: 0,
+  baseEdgeType: "FitToEdge",
   selectedEdgeType: "FitToEdge",
-
+  isMirrorMode: false,
+  previewViewport: {
+    scale: 1,
+    minScale: 1,
+    maxScale: 4,
+    offsetX: 0,
+    offsetY: 0,
+    isPanning: false,
+    startX: 0,
+    startY: 0,
+    touchMode: "none",
+    lastTouchDistance: 0,
+    lastTouchCenterX: 0,
+    lastTouchCenterY: 0,
+    initialized: false,
+    lastCanvasWidth: 0,
+    lastCanvasHeight: 0
+  },
+  cropState: {
+    isCropped: false,
+    backup: null,
+    isSelecting: false,
+    selectionRect: null
+  }
 };
+
+const MIRROR_MODE_STORAGE_KEY = "p2pMirrorMode";
 
 let threedPreviewTimer = null;
 function triggerThreeDPreview() {
@@ -150,6 +190,954 @@ function syncThreeDPreviewForCanvasChange(event) {
 previewSyncEvents.forEach((eventName) => {
   canvas.on(eventName, syncThreeDPreviewForCanvasChange);
 });
+
+function getCappedPreviewRenderSize(originalWidth, originalHeight, displayWidth, displayHeight) {
+  const safeOriginalWidth = Number(originalWidth) || Number(displayWidth) || 400;
+  const safeOriginalHeight = Number(originalHeight) || Number(displayHeight) || 400;
+  const safeDisplayWidth = Number(displayWidth) || 400;
+  const safeDisplayHeight = Number(displayHeight) || 400;
+  const isMobile = window.innerWidth < 680;
+  const maxLongSide = isMobile ? 1200 : 1800;
+  const maxPixels = isMobile ? 1600000 : 3200000;
+  const longestSide = Math.max(safeOriginalWidth, safeOriginalHeight);
+  const totalPixels = safeOriginalWidth * safeOriginalHeight;
+
+  let scale = 1;
+
+  if (longestSide > maxLongSide) {
+    scale = Math.min(scale, maxLongSide / longestSide);
+  }
+
+  if (totalPixels > maxPixels) {
+    scale = Math.min(scale, Math.sqrt(maxPixels / totalPixels));
+  }
+
+  return {
+    width: Math.max(safeDisplayWidth, Math.round(safeOriginalWidth * scale)),
+    height: Math.max(safeDisplayHeight, Math.round(safeOriginalHeight * scale))
+  };
+}
+
+function getCanvasPreviewDisplaySize() {
+  const width = Number(appState.displayWidth) || (typeof canvas?.getWidth === "function" ? canvas.getWidth() : canvas?.width) || 0;
+  const height = Number(appState.displayHeight) || (typeof canvas?.getHeight === "function" ? canvas.getHeight() : canvas?.height) || 0;
+
+  return { width, height };
+}
+
+function getCanvasPreviewElements() {
+  return {
+    container: canvas?.wrapperEl?.parentElement || document.querySelector(".canvas-panel.left-panel") || document.querySelector(".canvas-wrap"),
+    lowerCanvas: canvas?.lowerCanvasEl || document.getElementById("image-canvas"),
+    upperCanvas: canvas?.upperCanvasEl || document.querySelector(".canvas-wrap .upper-canvas")
+  };
+}
+
+function syncCanvasDisplaySize() {
+  const { lowerCanvas, upperCanvas } = getCanvasPreviewElements();
+  const display = getCanvasPreviewDisplaySize();
+  const wrapper = canvas?.wrapperEl;
+
+  if (!Number.isFinite(display.width) || !Number.isFinite(display.height) || display.width <= 0 || display.height <= 0) {
+    return;
+  }
+
+  const widthPx = `${Math.round(display.width)}px`;
+  const heightPx = `${Math.round(display.height)}px`;
+
+  [wrapper, lowerCanvas, upperCanvas].forEach((node) => {
+    if (!node) return;
+    node.style.width = widthPx;
+    node.style.height = heightPx;
+  });
+
+  canvas?.calcOffset?.();
+  appState.previewViewport.initialized = false;
+  appState.previewViewport.lastCanvasWidth = 0;
+  appState.previewViewport.lastCanvasHeight = 0;
+}
+
+function getCanvasFrontFaceBounds() {
+  const edgeSize = Number(appState.innerPadding ?? appState.borderSize ?? 0);
+  const canvasWidth = typeof canvas.getWidth === "function" ? canvas.getWidth() : canvas?.width;
+  const canvasHeight = typeof canvas.getHeight === "function" ? canvas.getHeight() : canvas?.height;
+
+  if (!Number.isFinite(canvasWidth) || !Number.isFinite(canvasHeight)) {
+    return null;
+  }
+
+  const width = canvasWidth - edgeSize * 2;
+  const height = canvasHeight - edgeSize * 2;
+  if (width <= 0 || height <= 0) {
+    return null;
+  }
+
+  return {
+    left: edgeSize,
+    top: edgeSize,
+    width,
+    height,
+    edgeSize
+  };
+}
+
+function getEffectiveEdgeType() {
+  if (appState.isMirrorMode) {
+    return "MirrorWrap";
+  }
+
+  return appState.baseEdgeType || appState.selectedEdgeType || "FitToEdge";
+}
+
+function syncSelectedEdgeType() {
+  const effectiveEdgeType = getEffectiveEdgeType();
+  const hiddenFormInput = document.getElementById("final-image-type-data");
+
+  appState.selectedEdgeType = effectiveEdgeType;
+
+  if (hiddenFormInput) {
+    hiddenFormInput.value = effectiveEdgeType;
+  }
+}
+
+function syncMirrorModeUI() {
+  const mirrorToggleBtn = document.getElementById("mirror-mode-toggle");
+  const mirrorInput = document.getElementById("mirror-mode-data");
+  const isActive = Boolean(appState.isMirrorMode);
+
+  if (mirrorToggleBtn) {
+    mirrorToggleBtn.classList.toggle("is-active", isActive);
+    mirrorToggleBtn.setAttribute("aria-pressed", String(isActive));
+    mirrorToggleBtn.textContent = isActive ? "Mirror edges on" : "Mirror edges off";
+  }
+
+  if (mirrorInput) {
+    mirrorInput.value = isActive ? "true" : "false";
+  }
+}
+
+function setMirrorMode(enabled, options = {}) {
+  const nextValue = Boolean(enabled);
+  const shouldPersist = options.persist !== false;
+
+  appState.isMirrorMode = nextValue;
+
+  if (shouldPersist) {
+    try {
+      sessionStorage.setItem(MIRROR_MODE_STORAGE_KEY, nextValue ? "true" : "false");
+    } catch (error) {
+      console.warn("Unable to persist mirror mode:", error);
+    }
+  }
+
+  syncSelectedEdgeType();
+  syncMirrorModeUI();
+
+  if (typeof window.drawBorderOnTop === "function") {
+    window.drawBorderOnTop();
+  }
+  canvas.requestRenderAll();
+}
+
+function initMirrorModeToggle() {
+  const mirrorToggleBtn = document.getElementById("mirror-mode-toggle");
+  if (!mirrorToggleBtn) return;
+
+  if (!mirrorToggleBtn.dataset.boundMirrorToggle) {
+    mirrorToggleBtn.addEventListener("click", () => {
+      setMirrorMode(!appState.isMirrorMode);
+    });
+    mirrorToggleBtn.dataset.boundMirrorToggle = "true";
+  }
+
+  let storedValue = null;
+  try {
+    storedValue = sessionStorage.getItem(MIRROR_MODE_STORAGE_KEY);
+  } catch (error) {
+    console.warn("Unable to read mirror mode state:", error);
+  }
+
+  setMirrorMode(storedValue === "true", { persist: false });
+}
+
+function createFrontFaceSnapshotCanvas(targetWidth, targetHeight) {
+  const bounds = getCanvasFrontFaceBounds();
+  const imageObject = appState.uploadedImage;
+  const sourceImage = typeof imageObject?.getElement === "function"
+    ? imageObject.getElement()
+    : (imageObject?._element || imageObject?._originalElement);
+
+  if (!bounds || !imageObject || !sourceImage) {
+    return null;
+  }
+
+  const faceCanvas = document.createElement("canvas");
+  faceCanvas.width = Math.max(1, Math.round(targetWidth ?? bounds.width));
+  faceCanvas.height = Math.max(1, Math.round(targetHeight ?? bounds.height));
+
+  const faceCtx = faceCanvas.getContext("2d");
+  if (!faceCtx) {
+    return null;
+  }
+
+  const sourceWidth = Number(sourceImage.naturalWidth || sourceImage.videoWidth || sourceImage.width || imageObject.width);
+  const sourceHeight = Number(sourceImage.naturalHeight || sourceImage.videoHeight || sourceImage.height || imageObject.height);
+  if (!Number.isFinite(sourceWidth) || !Number.isFinite(sourceHeight) || sourceWidth <= 0 || sourceHeight <= 0) {
+    return null;
+  }
+
+  const scaleX = Number(imageObject.scaleX) || 1;
+  const scaleY = Number(imageObject.scaleY) || 1;
+  const originX = imageObject.originX || "left";
+  const originY = imageObject.originY || "top";
+
+  let objectLeft = Number(imageObject.left) || 0;
+  let objectTop = Number(imageObject.top) || 0;
+
+  if (originX === "center") {
+    objectLeft -= (sourceWidth * scaleX) / 2;
+  } else if (originX === "right") {
+    objectLeft -= sourceWidth * scaleX;
+  }
+
+  if (originY === "center") {
+    objectTop -= (sourceHeight * scaleY) / 2;
+  } else if (originY === "bottom") {
+    objectTop -= sourceHeight * scaleY;
+  }
+
+  const faceScaleX = faceCanvas.width / bounds.width;
+  const faceScaleY = faceCanvas.height / bounds.height;
+  const drawLeft = (objectLeft - bounds.left) * faceScaleX;
+  const drawTop = (objectTop - bounds.top) * faceScaleY;
+  const scaledWidth = sourceWidth * scaleX * faceScaleX;
+  const scaledHeight = sourceHeight * scaleY * faceScaleY;
+
+  faceCtx.fillStyle = "#ffffff";
+  faceCtx.fillRect(0, 0, faceCanvas.width, faceCanvas.height);
+  faceCtx.imageSmoothingEnabled = true;
+  faceCtx.drawImage(
+    sourceImage,
+    0,
+    0,
+    sourceWidth,
+    sourceHeight,
+    drawLeft,
+    drawTop,
+    scaledWidth,
+    scaledHeight
+  );
+
+  return faceCanvas;
+}
+
+function loadImageFromAnySource(source) {
+  return new Promise((resolve, reject) => {
+    if (source instanceof HTMLImageElement) {
+      if (source.complete && source.naturalHeight !== 0) {
+        resolve(source);
+        return;
+      }
+
+      source.onload = () => resolve(source);
+      source.onerror = () => reject(new Error("Failed to load image element"));
+      return;
+    }
+
+    if (source instanceof HTMLCanvasElement) {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Failed to load canvas image"));
+      img.src = source.toDataURL();
+      return;
+    }
+
+    if (source instanceof File || source instanceof Blob) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("Failed to load file/blob image"));
+        img.src = event.target.result;
+      };
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.readAsDataURL(source);
+      return;
+    }
+
+    const resolvedSource = typeof source === "string"
+      ? source
+      : source?.src || source?.url || source?.imageUrl || source?.data || source?.image || source?.link;
+
+    if (!resolvedSource) {
+      reject(new Error(`Unsupported image source type: ${typeof source}`));
+      return;
+    }
+
+    const img = new Image();
+    if (!resolvedSource.startsWith("data:") && !resolvedSource.startsWith("blob:")) {
+      img.crossOrigin = "anonymous";
+    }
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Failed to load image source"));
+    img.src = resolvedSource;
+  });
+}
+
+function drawMirroredEdgeStrips(ctx, faceCanvas, edgeSize, destX = 0, destY = 0, drawCenter = false) {
+  if (!ctx || !faceCanvas) return;
+
+  const faceWidth = faceCanvas.width;
+  const faceHeight = faceCanvas.height;
+  const edge = Math.max(1, Math.round(edgeSize));
+  const horizontalSample = Math.max(1, Math.min(edge, faceHeight));
+  const verticalSample = Math.max(1, Math.min(edge, faceWidth));
+
+  if (drawCenter) {
+    ctx.drawImage(faceCanvas, destX + edge, destY + edge, faceWidth, faceHeight);
+  }
+
+  ctx.save();
+  ctx.translate(destX + edge, destY + edge);
+  ctx.scale(1, -1);
+  ctx.drawImage(faceCanvas, 0, 0, faceWidth, horizontalSample, 0, 0, faceWidth, edge);
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(destX + edge, destY + faceHeight + edge * 2);
+  ctx.scale(1, -1);
+  ctx.drawImage(
+    faceCanvas,
+    0,
+    Math.max(0, faceHeight - horizontalSample),
+    faceWidth,
+    horizontalSample,
+    0,
+    0,
+    faceWidth,
+    edge
+  );
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(destX + edge, destY + edge);
+  ctx.scale(-1, 1);
+  ctx.drawImage(faceCanvas, 0, 0, verticalSample, faceHeight, 0, 0, edge, faceHeight);
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(destX + faceWidth + edge * 2, destY + edge);
+  ctx.scale(-1, 1);
+  ctx.drawImage(
+    faceCanvas,
+    Math.max(0, faceWidth - verticalSample),
+    0,
+    verticalSample,
+    faceHeight,
+    0,
+    0,
+    edge,
+    faceHeight
+  );
+  ctx.restore();
+
+  const cornerSampleSize = Math.max(1, Math.min(edge, faceWidth, faceHeight));
+  const cornerConfigs = [
+    { dx: destX + edge, dy: destY + edge, sx: 0, sy: 0 },
+    {
+      dx: destX + faceWidth + edge * 2,
+      dy: destY + edge,
+      sx: Math.max(0, faceWidth - cornerSampleSize),
+      sy: 0
+    },
+    {
+      dx: destX + edge,
+      dy: destY + faceHeight + edge * 2,
+      sx: 0,
+      sy: Math.max(0, faceHeight - cornerSampleSize)
+    },
+    {
+      dx: destX + faceWidth + edge * 2,
+      dy: destY + faceHeight + edge * 2,
+      sx: Math.max(0, faceWidth - cornerSampleSize),
+      sy: Math.max(0, faceHeight - cornerSampleSize)
+    }
+  ];
+
+  cornerConfigs.forEach(({ dx, dy, sx, sy }) => {
+    ctx.save();
+    ctx.translate(dx, dy);
+    ctx.scale(-1, -1);
+    ctx.drawImage(faceCanvas, sx, sy, cornerSampleSize, cornerSampleSize, 0, 0, edge, edge);
+    ctx.restore();
+  });
+}
+
+function drawMirrorPreviewOnTop(ctx, edgeSize) {
+  if (!appState.isMirrorMode || !appState.uploadedImage || !Number.isFinite(edgeSize) || edgeSize <= 0) {
+    return false;
+  }
+
+  const bounds = getCanvasFrontFaceBounds();
+  if (!bounds) {
+    return false;
+  }
+
+  const faceCanvas = createFrontFaceSnapshotCanvas(bounds.width, bounds.height);
+  if (!faceCanvas) {
+    return false;
+  }
+
+  ctx.save();
+  drawMirroredEdgeStrips(ctx, faceCanvas, edgeSize, 0, 0, false);
+  ctx.restore();
+
+  return true;
+}
+
+function isPreviewCanvasTarget(target) {
+  const { lowerCanvas, upperCanvas } = getCanvasPreviewElements();
+  if (!target) return false;
+
+  return Boolean(
+    (lowerCanvas && (target === lowerCanvas || lowerCanvas.contains?.(target))) ||
+    (upperCanvas && (target === upperCanvas || upperCanvas.contains?.(target)))
+  );
+}
+
+function setCanvasPreviewCursor(cursor) {
+  const { container, lowerCanvas, upperCanvas } = getCanvasPreviewElements();
+
+  if (container) container.style.cursor = cursor;
+  if (lowerCanvas) lowerCanvas.style.cursor = cursor;
+  if (upperCanvas) upperCanvas.style.cursor = cursor;
+}
+
+function getCanvasPreviewViewportTransform() {
+  const viewportTransform = canvas?.viewportTransform;
+  if (Array.isArray(viewportTransform) && viewportTransform.length === 6) {
+    return viewportTransform.slice();
+  }
+
+  return [1, 0, 0, 1, 0, 0];
+}
+
+function withNeutralCanvasPreviewViewport(callback) {
+  if (typeof callback !== "function") {
+    return null;
+  }
+
+  const preview = appState.previewViewport;
+  const previousScale = preview.scale;
+  const previousOffsetX = preview.offsetX;
+  const previousOffsetY = preview.offsetY;
+  const previousInitialized = preview.initialized;
+  const previousTransform = getCanvasPreviewViewportTransform();
+
+  const restoreViewport = () => {
+    preview.scale = previousScale;
+    preview.offsetX = previousOffsetX;
+    preview.offsetY = previousOffsetY;
+    preview.initialized = previousInitialized;
+
+    if (typeof canvas?.setViewportTransform === "function") {
+      canvas.setViewportTransform(previousTransform);
+    } else if (canvas) {
+      canvas.viewportTransform = previousTransform;
+    }
+
+    canvas?.calcOffset?.();
+    canvas?.renderAll?.();
+  };
+
+  preview.scale = 1;
+  preview.offsetX = 0;
+  preview.offsetY = 0;
+
+  if (typeof canvas?.setViewportTransform === "function") {
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+  } else if (canvas) {
+    canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+  }
+
+  canvas?.calcOffset?.();
+  canvas?.renderAll?.();
+
+  try {
+    const result = callback();
+    if (result && typeof result.then === "function") {
+      return result.finally(restoreViewport);
+    }
+
+    restoreViewport();
+    return result;
+  } catch (error) {
+    restoreViewport();
+    throw error;
+  }
+}
+
+function clampCanvasPreviewOffsets() {
+  const preview = appState.previewViewport;
+  const { container } = getCanvasPreviewElements();
+  const display = getCanvasPreviewDisplaySize();
+  const canvasWidth = display.width;
+  const canvasHeight = display.height;
+
+  if (!container || !Number.isFinite(canvasWidth) || !Number.isFinite(canvasHeight)) {
+    return;
+  }
+
+  const containerRect = container.getBoundingClientRect();
+  const scaledWidth = canvasWidth * preview.scale;
+  const scaledHeight = canvasHeight * preview.scale;
+  const minOffsetX = scaledWidth <= containerRect.width ? 0 : containerRect.width - scaledWidth;
+  const maxOffsetX = scaledWidth <= containerRect.width ? containerRect.width - scaledWidth : 0;
+  const minOffsetY = scaledHeight <= containerRect.height ? 0 : containerRect.height - scaledHeight;
+  const maxOffsetY = scaledHeight <= containerRect.height ? containerRect.height - scaledHeight : 0;
+
+  preview.offsetX = Math.min(maxOffsetX, Math.max(minOffsetX, preview.offsetX));
+  preview.offsetY = Math.min(maxOffsetY, Math.max(minOffsetY, preview.offsetY));
+}
+
+function applyCanvasPreviewViewport() {
+  const preview = appState.previewViewport;
+  const { lowerCanvas, upperCanvas } = getCanvasPreviewElements();
+  const translateX = Math.abs(preview.scale - 1) < 0.001 ? Math.round(preview.offsetX) : preview.offsetX;
+  const translateY = Math.abs(preview.scale - 1) < 0.001 ? Math.round(preview.offsetY) : preview.offsetY;
+  const transform = `translate(${translateX}px, ${translateY}px) scale(${preview.scale})`;
+
+  if (typeof canvas?.setViewportTransform === "function") {
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+  } else if (canvas) {
+    canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+  }
+
+  [lowerCanvas, upperCanvas].forEach((node) => {
+    if (!node) return;
+    node.style.transformOrigin = "0 0";
+    node.style.transform = transform;
+  });
+
+  canvas?.calcOffset?.();
+  canvas?.requestRenderAll?.();
+}
+
+function recalculateCanvasPreviewZoom() {
+  const preview = appState.previewViewport;
+  const { container } = getCanvasPreviewElements();
+  const display = getCanvasPreviewDisplaySize();
+  const canvasWidth = display.width;
+  const canvasHeight = display.height;
+
+  if (!container || !Number.isFinite(canvasWidth) || !Number.isFinite(canvasHeight) || canvasWidth <= 0 || canvasHeight <= 0) {
+    return;
+  }
+
+  const containerRect = container.getBoundingClientRect();
+  if (!containerRect.width || !containerRect.height) {
+    return;
+  }
+
+  preview.minScale = 0.5;
+  preview.maxScale = 4;
+
+  const sizeChanged = canvasWidth !== preview.lastCanvasWidth || canvasHeight !== preview.lastCanvasHeight;
+
+  if (!preview.initialized || sizeChanged) {
+    preview.scale = 1;
+    preview.offsetX = Math.round((containerRect.width - canvasWidth) / 2);
+    preview.offsetY = Math.round((containerRect.height - canvasHeight) / 2);
+    preview.initialized = true;
+  }
+
+  preview.lastCanvasWidth = canvasWidth;
+  preview.lastCanvasHeight = canvasHeight;
+  clampCanvasPreviewOffsets();
+  applyCanvasPreviewViewport();
+}
+
+function zoomCanvasPreviewAtPoint(clientX, clientY, nextScale) {
+  const preview = appState.previewViewport;
+  const { container } = getCanvasPreviewElements();
+
+  if (!container) return;
+
+  const clampedScale = Math.max(preview.minScale, Math.min(preview.maxScale, nextScale));
+  const rect = container.getBoundingClientRect();
+  const pointerX = clientX - rect.left;
+  const pointerY = clientY - rect.top;
+  const worldX = (pointerX - preview.offsetX) / preview.scale;
+  const worldY = (pointerY - preview.offsetY) / preview.scale;
+
+  preview.scale = clampedScale;
+  preview.offsetX = pointerX - worldX * preview.scale;
+  preview.offsetY = pointerY - worldY * preview.scale;
+
+  clampCanvasPreviewOffsets();
+  applyCanvasPreviewViewport();
+}
+
+function isMainImageSelected() {
+  return canvas.getActiveObject?.() === appState.uploadedImage && !appState.cropState?.isSelecting;
+}
+
+function beginCanvasPreviewPan(clientX, clientY) {
+  if (canvas.getActiveObject()) {
+    canvas.discardActiveObject();
+    canvas.requestRenderAll();
+  }
+
+  appState.previewViewport.isPanning = true;
+  appState.previewViewport.startX = clientX - appState.previewViewport.offsetX;
+  appState.previewViewport.startY = clientY - appState.previewViewport.offsetY;
+  updateCanvasPreviewCursorState();
+}
+
+function updateCanvasPreviewCursorState() {
+  if (appState.previewViewport.isPanning) {
+    setCanvasPreviewCursor("grabbing");
+    return;
+  }
+
+  if (isMainImageSelected()) {
+    setCanvasPreviewCursor("default");
+    return;
+  }
+
+  setCanvasPreviewCursor(appState.uploadedImage ? "grab" : "default");
+}
+
+function processCanvasPreviewWheelEvent(event) {
+  if (!event) return;
+
+  if (appState.cropState?.isSelecting) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+
+  if (isMainImageSelected()) {
+    const zoomFactor = event.deltaY > 0 ? 0.95 : 1.05;
+    updateZoom(appState.zoom * zoomFactor);
+  } else {
+    const zoomFactor = event.deltaY > 0 ? 0.92 : 1.08;
+    zoomCanvasPreviewAtPoint(event.clientX, event.clientY, appState.previewViewport.scale * zoomFactor);
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function handleCanvasPreviewWheel(opt) {
+  processCanvasPreviewWheelEvent(opt.e);
+}
+
+function handleCanvasPreviewMouseDown(opt) {
+  const event = opt.e;
+  if (!event || event.button !== 0 || appState.cropState?.isSelecting) return;
+
+  if (opt.target) {
+    updateCanvasPreviewCursorState();
+    return;
+  }
+
+  beginCanvasPreviewPan(event.clientX, event.clientY);
+  event.preventDefault();
+}
+
+function handleCanvasPreviewMouseMove(opt) {
+  const event = opt.e;
+  if (!event || !appState.previewViewport.isPanning) return;
+
+  appState.previewViewport.offsetX = event.clientX - appState.previewViewport.startX;
+  appState.previewViewport.offsetY = event.clientY - appState.previewViewport.startY;
+
+  clampCanvasPreviewOffsets();
+  applyCanvasPreviewViewport();
+  event.preventDefault();
+}
+
+function stopCanvasPreviewPan() {
+  if (!appState.previewViewport.isPanning) return;
+
+  appState.previewViewport.isPanning = false;
+  updateCanvasPreviewCursorState();
+}
+
+function handleCanvasWrapWheel(event) {
+  if (!event || isPreviewCanvasTarget(event.target)) return;
+  processCanvasPreviewWheelEvent(event);
+}
+
+function handleCanvasWrapMouseDown(event) {
+  if (!event || event.button !== 0 || appState.cropState?.isSelecting || isPreviewCanvasTarget(event.target)) {
+    return;
+  }
+
+  beginCanvasPreviewPan(event.clientX, event.clientY);
+  event.preventDefault();
+}
+
+function handleCanvasWrapMouseMove(event) {
+  if (!event || !appState.previewViewport.isPanning) return;
+
+  appState.previewViewport.offsetX = event.clientX - appState.previewViewport.startX;
+  appState.previewViewport.offsetY = event.clientY - appState.previewViewport.startY;
+  clampCanvasPreviewOffsets();
+  applyCanvasPreviewViewport();
+  event.preventDefault();
+}
+
+function getTouchDistance(touch1, touch2) {
+  const dx = touch2.clientX - touch1.clientX;
+  const dy = touch2.clientY - touch1.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function getTouchCenter(touch1, touch2) {
+  return {
+    x: (touch1.clientX + touch2.clientX) / 2,
+    y: (touch1.clientY + touch2.clientY) / 2
+  };
+}
+
+function handleCanvasPreviewTouchStart(event) {
+  const preview = appState.previewViewport;
+  if (!event) return;
+
+  if (appState.cropState?.isSelecting) {
+    event.preventDefault();
+    return;
+  }
+
+  if (event.touches.length === 2) {
+    const center = getTouchCenter(event.touches[0], event.touches[1]);
+    preview.touchMode = isMainImageSelected() ? "imagePinch" : "previewPinch";
+    preview.lastTouchDistance = getTouchDistance(event.touches[0], event.touches[1]);
+    preview.lastTouchCenterX = center.x;
+    preview.lastTouchCenterY = center.y;
+    preview.isPanning = false;
+    event.preventDefault();
+    updateCanvasPreviewCursorState();
+    return;
+  }
+
+  if (event.touches.length === 1 && !isMainImageSelected()) {
+    if (canvas.getActiveObject()) {
+      canvas.discardActiveObject();
+      canvas.requestRenderAll();
+    }
+
+    preview.touchMode = "previewPan";
+    preview.isPanning = true;
+    preview.startX = event.touches[0].clientX - preview.offsetX;
+    preview.startY = event.touches[0].clientY - preview.offsetY;
+    event.preventDefault();
+    updateCanvasPreviewCursorState();
+  }
+}
+
+function handleCanvasPreviewTouchMove(event) {
+  const preview = appState.previewViewport;
+  if (!event) return;
+
+  if (preview.touchMode === "previewPan" && event.touches.length === 1) {
+    preview.offsetX = event.touches[0].clientX - preview.startX;
+    preview.offsetY = event.touches[0].clientY - preview.startY;
+    clampCanvasPreviewOffsets();
+    applyCanvasPreviewViewport();
+    event.preventDefault();
+    return;
+  }
+
+  if (preview.touchMode === "previewPinch" && event.touches.length === 2) {
+    const currentDistance = getTouchDistance(event.touches[0], event.touches[1]);
+    const currentCenter = getTouchCenter(event.touches[0], event.touches[1]);
+    const scaleFactor = preview.lastTouchDistance ? currentDistance / preview.lastTouchDistance : 1;
+
+    zoomCanvasPreviewAtPoint(currentCenter.x, currentCenter.y, preview.scale * scaleFactor);
+
+    preview.offsetX += currentCenter.x - preview.lastTouchCenterX;
+    preview.offsetY += currentCenter.y - preview.lastTouchCenterY;
+    clampCanvasPreviewOffsets();
+    applyCanvasPreviewViewport();
+
+    preview.lastTouchDistance = currentDistance;
+    preview.lastTouchCenterX = currentCenter.x;
+    preview.lastTouchCenterY = currentCenter.y;
+    event.preventDefault();
+    return;
+  }
+
+  if (preview.touchMode === "imagePinch" && event.touches.length === 2 && appState.uploadedImage) {
+    const currentDistance = getTouchDistance(event.touches[0], event.touches[1]);
+    const currentCenter = getTouchCenter(event.touches[0], event.touches[1]);
+    const scaleFactor = preview.lastTouchDistance ? currentDistance / preview.lastTouchDistance : 1;
+
+    updateZoom(appState.zoom * scaleFactor);
+
+    const deltaX = currentCenter.x - preview.lastTouchCenterX;
+    const deltaY = currentCenter.y - preview.lastTouchCenterY;
+    const previewScale = appState.previewViewport.scale || 1;
+
+    appState.uploadedImage.set({
+      left: appState.uploadedImage.left + (deltaX / previewScale),
+      top: appState.uploadedImage.top + (deltaY / previewScale)
+    });
+    appState.uploadedImage.setCoords();
+    updateMovementConstraints();
+    updatePositionInfo();
+    canvas.requestRenderAll();
+
+    preview.lastTouchDistance = currentDistance;
+    preview.lastTouchCenterX = currentCenter.x;
+    preview.lastTouchCenterY = currentCenter.y;
+    event.preventDefault();
+  }
+}
+
+function handleCanvasPreviewTouchEnd(event) {
+  const preview = appState.previewViewport;
+  if (!event) return;
+
+  if (event.touches.length === 1 && preview.touchMode === "previewPinch") {
+    preview.touchMode = "previewPan";
+    preview.isPanning = true;
+    preview.startX = event.touches[0].clientX - preview.offsetX;
+    preview.startY = event.touches[0].clientY - preview.offsetY;
+    preview.lastTouchDistance = 0;
+    return;
+  }
+
+  if (event.touches.length === 0) {
+    preview.touchMode = "none";
+    preview.lastTouchDistance = 0;
+    preview.isPanning = false;
+    updateCanvasPreviewCursorState();
+    return;
+  }
+
+  if (event.touches.length === 1 && preview.touchMode === "imagePinch") {
+    preview.touchMode = "none";
+    preview.lastTouchDistance = 0;
+    updateCanvasPreviewCursorState();
+  }
+}
+
+function handleCanvasWrapTouchStart(event) {
+  if (!event || (appState.previewViewport.touchMode === "none" && isPreviewCanvasTarget(event.target))) {
+    return;
+  }
+
+  handleCanvasPreviewTouchStart(event);
+}
+
+function handleCanvasWrapTouchMove(event) {
+  if (!event || (appState.previewViewport.touchMode === "none" && isPreviewCanvasTarget(event.target))) {
+    return;
+  }
+
+  handleCanvasPreviewTouchMove(event);
+}
+
+function handleCanvasWrapTouchEnd(event) {
+  if (!event || (appState.previewViewport.touchMode === "none" && isPreviewCanvasTarget(event.target))) {
+    return;
+  }
+
+  handleCanvasPreviewTouchEnd(event);
+}
+
+function initCanvasPreviewInteractions() {
+  if (canvas.__previewInteractionsInitialized) return;
+
+  const { container, upperCanvas, lowerCanvas } = getCanvasPreviewElements();
+  if (!container || !upperCanvas || !lowerCanvas) {
+    requestAnimationFrame(initCanvasPreviewInteractions);
+    return;
+  }
+
+  canvas.__previewInteractionsInitialized = true;
+  canvas.selection = false;
+  canvas.preserveObjectStacking = true;
+
+  canvas.on("mouse:wheel", handleCanvasPreviewWheel);
+  canvas.on("mouse:down", handleCanvasPreviewMouseDown);
+  canvas.on("mouse:move", handleCanvasPreviewMouseMove);
+  canvas.on("mouse:up", stopCanvasPreviewPan);
+  canvas.on("selection:created", updateCanvasPreviewCursorState);
+  canvas.on("selection:updated", updateCanvasPreviewCursorState);
+  canvas.on("selection:cleared", updateCanvasPreviewCursorState);
+
+  upperCanvas.addEventListener("mouseleave", stopCanvasPreviewPan);
+  container.addEventListener("mouseleave", stopCanvasPreviewPan);
+  container.addEventListener("wheel", handleCanvasWrapWheel, { passive: false });
+  container.addEventListener("mousedown", handleCanvasWrapMouseDown);
+  container.addEventListener("mousemove", handleCanvasWrapMouseMove);
+  container.addEventListener("touchstart", handleCanvasWrapTouchStart, { passive: false });
+  container.addEventListener("touchmove", handleCanvasWrapTouchMove, { passive: false });
+  container.addEventListener("touchend", handleCanvasWrapTouchEnd, { passive: false });
+  container.addEventListener("touchcancel", handleCanvasWrapTouchEnd, { passive: false });
+
+  upperCanvas.style.touchAction = "none";
+  upperCanvas.style.webkitUserSelect = "none";
+  upperCanvas.style.userSelect = "none";
+  lowerCanvas.style.touchAction = "none";
+  lowerCanvas.style.transform = "";
+  upperCanvas.style.transform = "";
+
+  upperCanvas.addEventListener("touchstart", handleCanvasPreviewTouchStart, { passive: false });
+  upperCanvas.addEventListener("touchmove", handleCanvasPreviewTouchMove, { passive: false });
+  upperCanvas.addEventListener("touchend", handleCanvasPreviewTouchEnd, { passive: false });
+  upperCanvas.addEventListener("touchcancel", handleCanvasPreviewTouchEnd, { passive: false });
+
+  window.addEventListener("mouseup", stopCanvasPreviewPan);
+  window.addEventListener("resize", requestCanvasZoomRecalc);
+  window.recalculateCanvasZoom = recalculateCanvasPreviewZoom;
+
+  requestAnimationFrame(() => {
+    recalculateCanvasPreviewZoom();
+    updateCanvasPreviewCursorState();
+  });
+}
+
+function configureEditableImageControls(image) {
+  if (!image) return;
+
+  image.set({
+    selectable: true,
+    evented: true,
+    hasBorders: true,
+    hasControls: true,
+    lockRotation: true,
+    lockScalingFlip: true,
+    lockUniScaling: true,
+    originX: "center",
+    originY: "center",
+    clipPath: appState.clipPath || null,
+    cornerStyle: "circle",
+    cornerColor: "#ffffff",
+    cornerStrokeColor: "#111111",
+    transparentCorners: false,
+    cornerSize: 12,
+    borderColor: "rgba(255,255,255,0.9)",
+    borderDashArray: [4, 4],
+    padding: 0,
+    objectCaching: false,
+    noScaleCache: false,
+    hoverCursor: "move",
+    moveCursor: "move"
+  });
+
+  image.setControlsVisibility({
+    mt: false,
+    mb: false,
+    ml: false,
+    mr: false,
+    mtr: false
+  });
+}
 // ============================
 // CENTER GUIDELINES WITH SNAPPING
 // ============================
@@ -242,6 +1230,10 @@ const mockupState = {
 
 document.addEventListener("DOMContentLoaded", initWrapSelector);
 window.addEventListener("load", initWrapSelector);
+document.addEventListener("DOMContentLoaded", initMirrorModeToggle);
+window.addEventListener("load", initMirrorModeToggle);
+document.addEventListener("DOMContentLoaded", initCanvasPreviewInteractions);
+window.addEventListener("load", initCanvasPreviewInteractions);
 function initWrapSelector() {
 
   const options = document.querySelectorAll('.wrap-option');
@@ -334,24 +1326,21 @@ function initWrapSelector() {
     if (!value) value = sessionStorage.getItem("selectedWrap");
     if (!value) return;
 
-    const hiddenFormInput = document.getElementById("final-image-type-data");
-
     if (value === "black") {
-      appState.selectedEdgeType = "BlackWrap";
-      if (hiddenFormInput) hiddenFormInput.value = "BlackWrap";
+      window.appState.baseEdgeType = "BlackWrap";
+      syncSelectedEdgeType();
       coverFrame("black");
     }
 
     else if (value === "white") {
-      appState.selectedEdgeType = "WhiteWrap";
-      if (hiddenFormInput) hiddenFormInput.value = "WhiteWrap";
+      window.appState.baseEdgeType = "WhiteWrap";
+      syncSelectedEdgeType();
       coverFrame("white");
     }
 
     else {
-      appState.selectedEdgeType = "FitToEdge";
-      if (hiddenFormInput) hiddenFormInput.value = "FitToEdge";
-      // fitImageToFrame(true);
+      window.appState.baseEdgeType = "FitToEdge";
+      syncSelectedEdgeType();
       FitFrontFrame();
     }
   }
@@ -946,6 +1935,20 @@ function updateFrameFromPixels(width, height, width1, height1) {
     }
   }
 
+  if (!Number.isFinite(innerPadding)) {
+    innerPadding = 0;
+  }
+
+  const displayScaleX = appState.displayWidth ? width / appState.displayWidth : 1;
+  const displayScaleY = appState.displayHeight ? height / appState.displayHeight : 1;
+  const displayScale = Math.min(displayScaleX, displayScaleY);
+
+  if (Number.isFinite(displayScale) && displayScale > 0) {
+    innerPadding *= displayScale;
+  }
+
+  appState.innerPadding = innerPadding;
+  appState.borderSize = innerPadding;
   appState.innerWidth = width - innerPadding * 2;
   appState.innerHeight = height - innerPadding * 2;
 
@@ -996,13 +1999,16 @@ function updateFrameFromPixels(width, height, width1, height1) {
 
     ctx.setLineDash([]);
 
+    const mirrorPreviewDrawn = drawMirrorPreviewOnTop(ctx, borderSize);
 
-    ctx.fillStyle = "#ffffff00";
+    if (!mirrorPreviewDrawn) {
+      ctx.fillStyle = "#ffffff00";
 
-    ctx.fillRect(0, 0, bw, borderSize);
-    ctx.fillRect(0, bh - borderSize, bw, borderSize);
-    ctx.fillRect(0, borderSize, borderSize, bh - borderSize * 2);
-    ctx.fillRect(bw - borderSize, borderSize, borderSize, bh - borderSize * 2);
+      ctx.fillRect(0, 0, bw, borderSize);
+      ctx.fillRect(0, bh - borderSize, bw, borderSize);
+      ctx.fillRect(0, borderSize, borderSize, bh - borderSize * 2);
+      ctx.fillRect(bw - borderSize, borderSize, borderSize, bh - borderSize * 2);
+    }
 
 
     // ctx.fillStyle = "black";
@@ -1037,6 +2043,8 @@ function updateFrameFromPixels(width, height, width1, height1) {
   canvas.off("after:render");
   canvas.on("after:render", drawBorderOnTop);
   canvas.requestRenderAll();
+  syncCanvasDisplaySize();
+  requestCanvasZoomRecalc();
   updatePositionInfo();
   updateCenterLines();
 }
@@ -1384,18 +2392,28 @@ function updateFrameSize(selectedOption) {
   if (selectedOrientation === "portrait") {
     appState.originalWidth = width1;
     appState.originalHeight = height1;
-    appState.selectedWidth = width;
-    appState.selectedHeight = height;
+    appState.displayWidth = width;
+    appState.displayHeight = height;
     appState.extendheight = extendheight;
     appState.extendwidth = extendwidth;
   } else { // landscape
     appState.originalWidth = height1;
     appState.originalHeight = width1;
-    appState.selectedWidth = height;
-    appState.selectedHeight = width;
+    appState.displayWidth = height;
+    appState.displayHeight = width;
     appState.extendheight = extendwidth;
     appState.extendwidth = extendheight;
   }
+
+  const renderSize = getCappedPreviewRenderSize(
+    appState.originalWidth,
+    appState.originalHeight,
+    appState.displayWidth,
+    appState.displayHeight
+  );
+
+  appState.selectedWidth = renderSize.width;
+  appState.selectedHeight = renderSize.height;
 
   // Update UI elements
   updateFrameFromPixels(appState.selectedWidth, appState.selectedHeight, appState.originalWidth, appState.originalHeight);
@@ -1419,6 +2437,8 @@ function updateFrameSize(selectedOption) {
   // Handle canvas updates
   canvas.setWidth(appState.selectedWidth);
   canvas.setHeight(appState.selectedHeight);
+  syncCanvasDisplaySize();
+  requestCanvasZoomRecalc();
 
   // Update all canvas objects
   canvas.getObjects().forEach(obj => {
@@ -1730,8 +2750,11 @@ uploadInput.addEventListener("change", async function (e) {
       mainImgWrap.setAttribute("data-main-img", imageDataUrl);
     }
 
+    requestCanvasZoomRecalc();
+
     fabric.Image.fromURL(imageDataUrl, function (fabricImg) {
       appState.uploadedImage = fabricImg;
+      appState.cropState = { isCropped: false, backup: null, isSelecting: false, selectionRect: null };
 
       const imgfileWElement = document.getElementById("img-file-w");
       const imgfileHElement = document.getElementById("img-file-h");
@@ -1739,30 +2762,10 @@ uploadInput.addEventListener("change", async function (e) {
       if (imgfileWElement) imgfileWElement.textContent = fabricImg.width;
       if (imgfileHElement) imgfileHElement.textContent = fabricImg.height;
 
-      fabricImg.set({
-        selectable: true,
-        evented: true,
-        hasBorders: false,
-        hasControls: false,
-        lockRotation: true,
-        lockScalingFlip: true,
-        lockUniScaling: true,
-        originX: "center",
-        originY: "center",
-        clipPath: appState.clipPath
-      });
-
-      fabricImg.setControlsVisibility({
-        mt: false,
-        mb: false,
-        ml: false,
-        mr: false,
-        mtr: false
-      });
+      configureEditableImageControls(fabricImg);
 
       canvas.add(fabricImg);
       setMovementConstraints();
-      canvas.setActiveObject(fabricImg);
       canvas.moveTo(fabricImg, 2);
 
       if (!isEdgesEnabled()) {
@@ -1771,6 +2774,9 @@ uploadInput.addEventListener("change", async function (e) {
         FitFrontFrame();
       }
 
+      canvas.discardActiveObject();
+      canvas.requestRenderAll();
+      updateCanvasPreviewCursorState();
       syncZoomSlider();
     });
   }
@@ -1979,13 +2985,18 @@ function updateZoom(newZoom) {
     }
 
     const finalScale = baseScale * appState.zoom;
+    const currentLeft = appState.uploadedImage.left;
+    const currentTop = appState.uploadedImage.top;
 
     appState.uploadedImage.scaleX = finalScale;
     appState.uploadedImage.scaleY = finalScale;
     appState.scaleFactor = finalScale;
+    appState.uploadedImage.set({
+      left: currentLeft,
+      top: currentTop
+    });
 
     updateMovementConstraints();
-    centerImage();
     appState.uploadedImage.setCoords();
     updatePositionInfo();
 
@@ -2448,6 +3459,7 @@ window.addEventListener("DOMContentLoaded", () => {
       galleryWrapper.style.display = "none";
       uploadInputwrap.style.display = "none";
       customForm.style.display = "block";
+      requestCanvasZoomRecalc();
 
       const mainImgWrap = document.querySelector(".main-img-wrap");
       if (mainImgWrap) {
@@ -2465,23 +3477,16 @@ window.addEventListener("DOMContentLoaded", () => {
 
         fabric.Image.fromURL(sessionImageData1, function (img) {
           appState.uploadedImage = img;
-          appState.uploadedImage.set({
-            selectable: true,
-            hasBorders: false,
-            hasControls: false,
-            lockRotation: true,
-            lockScalingFlip: true,
-            lockUniScaling: true,
-            originX: "center",
-            originY: "center",
-            clipPath: appState.clipPath,
-          });
+          appState.cropState = { isCropped: false, backup: null, isSelecting: false, selectionRect: null };
+          configureEditableImageControls(appState.uploadedImage);
 
           canvas.add(appState.uploadedImage);
-          setMovementConstraints(); // Add this
-          canvas.setActiveObject(appState.uploadedImage);
+          setMovementConstraints();
           canvas.moveTo(appState.uploadedImage, 2);
-          FitFrontFrame();;
+          FitFrontFrame();
+          canvas.discardActiveObject();
+          canvas.requestRenderAll();
+          updateCanvasPreviewCursorState();
         });
         document.querySelectorAll(".image-conform-btn").forEach(div => {
           div.style.pointerEvents = "auto";
@@ -2789,6 +3794,15 @@ async function sendMainImageToAPI(e) {
     if (edgeType === "BlackWrap") {
       await generateCanvasWithBlackEdge();
       // These will only run after generateCanvasWithBlackEdge is completely finished
+      if (finalpopup1) finalpopup1.style.display = "none";
+      if (finalpopup2) finalpopup2.style.display = "block";
+
+      btn.textContent = "Added!";
+      return;
+    }
+
+    if (edgeType === "MirrorWrap") {
+      await generateCanvasWithMirrorEdge();
       if (finalpopup1) finalpopup1.style.display = "none";
       if (finalpopup2) finalpopup2.style.display = "block";
 
@@ -3158,10 +4172,10 @@ async function exportFullDivAsImage(customerId, sessionId) {
 
 
     // 1️⃣ Export canvas to data URL
-    const dataURL = canvas.toDataURL({
+    const dataURL = withNeutralCanvasPreviewViewport(() => canvas.toDataURL({
       format: "jpeg",
       multiplier: 2,
-    });
+    }));
     // const paddedDataURL = await addPaddingToDataURL(dataURL, 0);
 
     const res = await fetch(dataURL);
@@ -3355,6 +4369,8 @@ async function upscaleAndFixDPI({
       mainImgWrap.innerHTML = `<img src="${enhancedUrl}" style="max-width:100%;">`;
     }
 
+    requestCanvasZoomRecalc();
+
     fabric.Image.fromURL(enhancedUrl, async (img) => {
 
       // 🔹 CLEAR CANVAS SAFELY
@@ -3362,17 +4378,8 @@ async function upscaleAndFixDPI({
       canvas.setBackgroundColor("#ffffff", canvas.renderAll.bind(canvas));
 
       appState.uploadedImage = img;
-      appState.uploadedImage.set({
-        selectable: true,
-        hasBorders: false,
-        hasControls: false,
-        lockRotation: true,
-        lockScalingFlip: true,
-        lockUniScaling: true,
-        originX: "center",
-        originY: "center",
-        clipPath: appState.clipPath || null
-      });
+      appState.cropState = { isCropped: false, backup: null, isSelecting: false, selectionRect: null };
+      configureEditableImageControls(appState.uploadedImage);
 
       canvas.add(appState.uploadedImage);
 
@@ -3384,7 +4391,8 @@ async function upscaleAndFixDPI({
       }
 
       setMovementConstraints();
-      canvas.setActiveObject(appState.uploadedImage);
+      canvas.discardActiveObject();
+      updateCanvasPreviewCursorState();
       canvas.renderAll();
 
       // fitImageToFrame(true);
@@ -3783,11 +4791,13 @@ function getCroppedCanvas() {
   cropped.height = sh;
   const ctx = cropped.getContext("2d");
 
-  ctx.drawImage(
-    canvas.lowerCanvasEl,
-    innerPadding, innerPadding, sw, sh,
-    0, 0, sw, sh
-  );
+  withNeutralCanvasPreviewViewport(() => {
+    ctx.drawImage(
+      canvas.lowerCanvasEl,
+      innerPadding, innerPadding, sw, sh,
+      0, 0, sw, sh
+    );
+  });
 
   return cropped;
 }
@@ -4614,6 +5624,248 @@ async function generateCanvasWithBlackEdge() {
 // Make the function globally accessible
 window.generateCanvasWithBlackEdge = generateCanvasWithBlackEdge;
 
+async function uploadRenderedEdgeCanvas(renderCanvas, fileName) {
+  const base64ToBlob = (base64Data) => {
+    const parts = base64Data.split(';base64,');
+    const contentType = parts[0].split(':')[1];
+    const raw = window.atob(parts[1]);
+    const uInt8Array = new Uint8Array(raw.length);
+
+    for (let i = 0; i < raw.length; ++i) {
+      uInt8Array[i] = raw.charCodeAt(i);
+    }
+
+    return new Blob([uInt8Array], { type: contentType });
+  };
+
+  const uploadToThumbnailAPI = async (cloudfrontLink, customerId, sessionId) => {
+    const formData = new FormData();
+    formData.append("customerId", customerId);
+    formData.append("sessionId", sessionId);
+    formData.append("thumbnailWidth", "200");
+    formData.append("imageUrl", cloudfrontLink);
+
+    const response = await fetch(`${window.Prompt2Prints.apiBase}/image-thumbnail`, {
+      method: "POST",
+      headers: {
+        "x-api-key": window.Prompt2Prints.apiKey
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Thumbnail API responded with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    const previewInput = document.getElementById("preview-image-data");
+    if (previewInput && data.original?.cloudfrontUrl) {
+      previewInput.value = data.original.cloudfrontUrl;
+    }
+
+    const previewThumbInput = document.getElementById("preview-thumb-image-data");
+    if (previewThumbInput && data.thumbnail?.cloudfrontUrl) {
+      previewThumbInput.value = data.thumbnail.cloudfrontUrl;
+    }
+
+    return data;
+  };
+
+  return new Promise((resolve, reject) => {
+    renderCanvas.toBlob(async (blob) => {
+      if (!blob) {
+        reject(new Error("Failed to create blob from canvas"));
+        return;
+      }
+
+      try {
+        const formData = new FormData();
+        const userId = window.shopifyCustomerId || "guest";
+        const sessionId = getLocalStorage1Day("sessionId") || "none";
+        const imageData = renderCanvas.toDataURL("image/jpeg");
+
+        if (imageData.startsWith("http") || imageData.startsWith("//")) {
+          formData.append("imageUrl", imageData);
+        } else if (imageData.startsWith("data:image/")) {
+          const imageBlob = base64ToBlob(imageData);
+          formData.append("file", imageBlob, fileName);
+        } else {
+          reject(new Error("Invalid image data format"));
+          return;
+        }
+
+        formData.append("customerId", userId);
+        formData.append("sessionId", sessionId);
+
+        const response = await fetch(`${window.Prompt2Prints.apiBase}/upload-image`, {
+          method: "POST",
+          headers: {
+            "x-api-key": window.Prompt2Prints.apiKey
+          },
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Main API responded with status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const imageUpscale = document.querySelector('input[name="properties[_pdp-allow-upscale]"]');
+        const imageUpscaletag = document.querySelector('input[name="properties[_pdp-img-tag]"]');
+
+        if (imageUpscale && imageUpscaletag) {
+          const flag = (data.flag || "").toLowerCase();
+
+          if (flag === "standard") {
+            imageUpscale.value = "true";
+            imageUpscaletag.value = "Standard";
+          } else if (flag === "professional") {
+            imageUpscale.value = "false";
+            imageUpscaletag.value = "Professional";
+          } else {
+            imageUpscale.value = "";
+            imageUpscaletag.value = "";
+          }
+
+          imageUpscale.setAttribute("value", imageUpscale.value);
+          imageUpscaletag.setAttribute("value", imageUpscaletag.value);
+        }
+
+        let thumbnailData = null;
+        if (data.cloudfrontLink) {
+          const hiddenInput = document.getElementById("final-image-data");
+          if (hiddenInput) {
+            hiddenInput.value = data.cloudfrontLink;
+          }
+
+          const cvswElement = parseFloat(document.getElementById("cvs-w")?.textContent) || 0;
+          const cvshElement = parseFloat(document.getElementById("cvs-h")?.textContent) || 0;
+          const hiddenimg = document.getElementById("frame-img-position");
+          const orientationRadio = document.querySelector('input[name="orientation"]:checked');
+          const orientation = orientationRadio ? orientationRadio.value : "portrait";
+
+          if (hiddenimg) {
+            const payload = orientation === "landscape"
+              ? {
+                  area_width: cvshElement,
+                  area_height: cvswElement,
+                  width: appState.newCanvasHeight,
+                  height: appState.newCanvasWidth,
+                  top: 0,
+                  left: 0,
+                }
+              : {
+                  area_width: cvswElement,
+                  area_height: cvshElement,
+                  width: appState.newCanvasWidth,
+                  height: appState.newCanvasHeight,
+                  top: 0,
+                  left: 0,
+                };
+
+            hiddenimg.value = JSON.stringify(payload);
+          }
+
+          appState.generatedImageUrl = data.cloudfrontLink;
+          thumbnailData = await uploadToThumbnailAPI(data.cloudfrontLink, userId, sessionId);
+        }
+
+        resolve({
+          success: true,
+          cloudfrontLink: data.cloudfrontLink,
+          thumbnailData,
+          mainApiData: data
+        });
+      } catch (error) {
+        reject(error);
+      }
+    }, "image/jpeg");
+  });
+}
+
+async function generateCanvasWithMirrorEdge() {
+  updatePositionInfo();
+
+  const imageSource = appState.uploadedImageForBlackEdge || appState.uploadedImage;
+
+  if (!imageSource) {
+    alert("Please upload an image first!");
+    throw new Error("No uploaded image found");
+  }
+
+  if (!appState.newCanvasWidth || !appState.newCanvasHeight) {
+    alert("Canvas dimensions not calculated. Please position the image first.");
+    throw new Error("Canvas dimensions not calculated");
+  }
+
+  const edgeSize = Number(appState.newBorder || 0);
+  if (!Number.isFinite(edgeSize) || edgeSize <= 0) {
+    throw new Error("Mirror edge size is invalid");
+  }
+
+  const faceWidth = Math.max(1, Math.round(appState.newCanvasWidth - edgeSize * 2));
+  const faceHeight = Math.max(1, Math.round(appState.newCanvasHeight - edgeSize * 2));
+  const image = await loadImageFromAnySource(imageSource);
+  const filewvalue = parseFloat(document.getElementById("img-file-w")?.textContent) || image.naturalWidth || image.width || 0;
+  const filehvalue = parseFloat(document.getElementById("img-file-h")?.textContent) || image.naturalHeight || image.height || 0;
+
+  const compositionCanvas = document.createElement("canvas");
+  compositionCanvas.width = Math.max(1, Math.round(appState.newCanvasWidth));
+  compositionCanvas.height = Math.max(1, Math.round(appState.newCanvasHeight));
+
+  const compositionCtx = compositionCanvas.getContext("2d");
+  if (!compositionCtx) {
+    throw new Error("Unable to create mirror composition canvas");
+  }
+
+  compositionCtx.fillStyle = "#ffffff";
+  compositionCtx.fillRect(0, 0, compositionCanvas.width, compositionCanvas.height);
+  compositionCtx.imageSmoothingEnabled = true;
+  compositionCtx.drawImage(
+    image,
+    appState.newimageleft || 0,
+    appState.newimagetop || 0,
+    filewvalue,
+    filehvalue
+  );
+
+  const faceCanvas = document.createElement("canvas");
+  faceCanvas.width = faceWidth;
+  faceCanvas.height = faceHeight;
+
+  const faceCtx = faceCanvas.getContext("2d");
+  if (!faceCtx) {
+    throw new Error("Unable to create front-face canvas for mirror wrap");
+  }
+
+  faceCtx.drawImage(
+    compositionCanvas,
+    edgeSize,
+    edgeSize,
+    faceWidth,
+    faceHeight,
+    0,
+    0,
+    faceWidth,
+    faceHeight
+  );
+
+  canvasnewblack.width = Math.max(1, Math.round(appState.newCanvasWidth));
+  canvasnewblack.height = Math.max(1, Math.round(appState.newCanvasHeight));
+
+  ctx1.clearRect(0, 0, canvasnewblack.width, canvasnewblack.height);
+  ctx1.fillStyle = "#ffffff";
+  ctx1.fillRect(0, 0, canvasnewblack.width, canvasnewblack.height);
+  ctx1.imageSmoothingEnabled = true;
+
+  drawMirroredEdgeStrips(ctx1, faceCanvas, edgeSize, 0, 0, true);
+
+  return uploadRenderedEdgeCanvas(canvasnewblack, "canvas-with-mirror-edge.jpeg");
+}
+
+window.generateCanvasWithMirrorEdge = generateCanvasWithMirrorEdge;
+
 async function generateCanvasWithWhiteEdge() {
 
   // Enhanced image loading function that handles all source types
@@ -5253,22 +6505,20 @@ if (!appState.uploadedImageForBlackEdge) {
 function setWrap() {
   value = sessionStorage.getItem("selectedWrap");
   if (!value) return;
-  const hiddenFormInput = document.getElementById("final-image-type-data");
 
   if (value === "black") {
-    appState.selectedEdgeType = "BlackWrap";
-    if (hiddenFormInput) hiddenFormInput.value = "BlackWrap";
+    appState.baseEdgeType = "BlackWrap";
+    syncSelectedEdgeType();
     coverFrame("black");
   }
   else if (value === "white") {
-    appState.selectedEdgeType = "WhiteWrap";
-    if (hiddenFormInput) hiddenFormInput.value = "WhiteWrap";
+    appState.baseEdgeType = "WhiteWrap";
+    syncSelectedEdgeType();
     coverFrame("white");
   }
   else if (value === "fit") {
-    appState.selectedEdgeType = "FitToEdge";
-    if (hiddenFormInput) hiddenFormInput.value = "FitToEdge";
-    // fitImageToFrame(true);
+    appState.baseEdgeType = "FitToEdge";
+    syncSelectedEdgeType();
     FitFrontFrame();
   }
 }
