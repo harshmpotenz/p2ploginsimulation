@@ -595,6 +595,211 @@ function drawMirrorPreviewOnTop(ctx, edgeSize) {
   return true;
 }
 
+function createSizedCanvas(width, height) {
+  const canvasEl = document.createElement("canvas");
+  canvasEl.width = Math.max(1, Math.round(width));
+  canvasEl.height = Math.max(1, Math.round(height));
+  return canvasEl;
+}
+
+function cropCanvasRegion(sourceCanvas, sx, sy, sw, sh) {
+  const cropped = createSizedCanvas(sw, sh);
+  const ctx = cropped.getContext("2d");
+  if (!ctx) return cropped;
+
+  ctx.drawImage(
+    sourceCanvas,
+    sx,
+    sy,
+    sw,
+    sh,
+    0,
+    0,
+    cropped.width,
+    cropped.height
+  );
+
+  return cropped;
+}
+
+function scaleCanvasToMaxLongSide(sourceCanvas, maxLongSide = 1400) {
+  if (!sourceCanvas) return null;
+
+  const width = sourceCanvas.width || 0;
+  const height = sourceCanvas.height || 0;
+  const longestSide = Math.max(width, height);
+
+  if (!longestSide || longestSide <= maxLongSide) {
+    return sourceCanvas;
+  }
+
+  const scale = maxLongSide / longestSide;
+  const scaledCanvas = createSizedCanvas(width * scale, height * scale);
+  const ctx = scaledCanvas.getContext("2d");
+  if (!ctx) return sourceCanvas;
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(sourceCanvas, 0, 0, scaledCanvas.width, scaledCanvas.height);
+  return scaledCanvas;
+}
+
+function createFullCanvasComposition(targetWidth, targetHeight) {
+  const imageObject = appState.uploadedImage;
+  const sourceImage = typeof imageObject?.getElement === "function"
+    ? imageObject.getElement()
+    : (imageObject?._element || imageObject?._originalElement);
+
+  if (!imageObject || !sourceImage) {
+    return null;
+  }
+
+  const compositionCanvas = createSizedCanvas(targetWidth, targetHeight);
+  const compositionCtx = compositionCanvas.getContext("2d");
+  if (!compositionCtx) {
+    return null;
+  }
+
+  const sourceWidth = Number(sourceImage.naturalWidth || sourceImage.videoWidth || sourceImage.width || imageObject.width);
+  const sourceHeight = Number(sourceImage.naturalHeight || sourceImage.videoHeight || sourceImage.height || imageObject.height);
+  if (!Number.isFinite(sourceWidth) || !Number.isFinite(sourceHeight) || sourceWidth <= 0 || sourceHeight <= 0) {
+    return null;
+  }
+
+  const scaleX = Number(imageObject.scaleX) || 1;
+  const scaleY = Number(imageObject.scaleY) || 1;
+  const originX = imageObject.originX || "left";
+  const originY = imageObject.originY || "top";
+
+  let objectLeft = Number(imageObject.left) || 0;
+  let objectTop = Number(imageObject.top) || 0;
+
+  if (originX === "center") {
+    objectLeft -= (sourceWidth * scaleX) / 2;
+  } else if (originX === "right") {
+    objectLeft -= sourceWidth * scaleX;
+  }
+
+  if (originY === "center") {
+    objectTop -= (sourceHeight * scaleY) / 2;
+  } else if (originY === "bottom") {
+    objectTop -= sourceHeight * scaleY;
+  }
+
+  compositionCtx.fillStyle = "#ffffff";
+  compositionCtx.fillRect(0, 0, compositionCanvas.width, compositionCanvas.height);
+  compositionCtx.imageSmoothingEnabled = true;
+  compositionCtx.drawImage(
+    sourceImage,
+    0,
+    0,
+    sourceWidth,
+    sourceHeight,
+    objectLeft,
+    objectTop,
+    sourceWidth * scaleX,
+    sourceHeight * scaleY
+  );
+
+  return compositionCanvas;
+}
+
+function createPreviewWrapCanvas() {
+  const bounds = getCanvasFrontFaceBounds();
+  const canvasWidth = typeof canvas.getWidth === "function" ? canvas.getWidth() : canvas?.width;
+  const canvasHeight = typeof canvas.getHeight === "function" ? canvas.getHeight() : canvas?.height;
+
+  if (!bounds || !canvasWidth || !canvasHeight) {
+    return null;
+  }
+
+  const effectiveEdgeType = getEffectiveEdgeType();
+  const edgeSize = bounds.edgeSize;
+  const wrapCanvas = createSizedCanvas(canvasWidth, canvasHeight);
+  const wrapCtx = wrapCanvas.getContext("2d");
+  if (!wrapCtx) {
+    return null;
+  }
+
+  const frontCanvas = createFrontFaceSnapshotCanvas(bounds.width, bounds.height);
+  if (!frontCanvas) {
+    return null;
+  }
+
+  wrapCtx.imageSmoothingEnabled = true;
+
+  if (effectiveEdgeType === "MirrorWrap") {
+    wrapCtx.fillStyle = "#ffffff";
+    wrapCtx.fillRect(0, 0, wrapCanvas.width, wrapCanvas.height);
+    drawMirroredEdgeStrips(wrapCtx, frontCanvas, edgeSize, 0, 0, true);
+    return {
+      wrapCanvas,
+      frontCanvas,
+      edgeSize,
+      wrapType: effectiveEdgeType
+    };
+  }
+
+  if (effectiveEdgeType === "WhiteWrap" || effectiveEdgeType === "BlackWrap") {
+    wrapCtx.fillStyle = effectiveEdgeType === "BlackWrap" ? "#000000" : "#ffffff";
+    wrapCtx.fillRect(0, 0, wrapCanvas.width, wrapCanvas.height);
+    wrapCtx.drawImage(frontCanvas, edgeSize, edgeSize, bounds.width, bounds.height);
+    return {
+      wrapCanvas,
+      frontCanvas,
+      edgeSize,
+      wrapType: effectiveEdgeType
+    };
+  }
+
+  const compositionCanvas = createFullCanvasComposition(canvasWidth, canvasHeight);
+  if (!compositionCanvas) {
+    return null;
+  }
+
+  wrapCtx.drawImage(compositionCanvas, 0, 0, wrapCanvas.width, wrapCanvas.height);
+
+  return {
+    wrapCanvas,
+    frontCanvas: cropCanvasRegion(
+      compositionCanvas,
+      bounds.left,
+      bounds.top,
+      bounds.width,
+      bounds.height
+    ),
+    edgeSize,
+    wrapType: effectiveEdgeType
+  };
+}
+
+function createPreviewAssets(maxLongSide = 1400) {
+  const previewWrap = createPreviewWrapCanvas();
+  if (!previewWrap?.wrapCanvas || !previewWrap.frontCanvas) {
+    return null;
+  }
+
+  const scaledWrapCanvas = scaleCanvasToMaxLongSide(previewWrap.wrapCanvas, maxLongSide);
+  const scale = scaledWrapCanvas.width / previewWrap.wrapCanvas.width;
+  const scaledEdge = Math.max(1, Math.round(previewWrap.edgeSize * scale));
+  const frontWidth = Math.max(1, Math.round(previewWrap.frontCanvas.width * scale));
+  const frontHeight = Math.max(1, Math.round(previewWrap.frontCanvas.height * scale));
+
+  return {
+    wrapType: previewWrap.wrapType,
+    wrapCanvas: scaledWrapCanvas,
+    frontCanvas: cropCanvasRegion(scaledWrapCanvas, scaledEdge, scaledEdge, frontWidth, frontHeight),
+    leftCanvas: cropCanvasRegion(scaledWrapCanvas, 0, scaledEdge, scaledEdge, frontHeight),
+    rightCanvas: cropCanvasRegion(scaledWrapCanvas, scaledEdge + frontWidth, scaledEdge, scaledEdge, frontHeight),
+    topCanvas: cropCanvasRegion(scaledWrapCanvas, scaledEdge, 0, frontWidth, scaledEdge),
+    bottomCanvas: cropCanvasRegion(scaledWrapCanvas, scaledEdge, scaledEdge + frontHeight, frontWidth, scaledEdge),
+    edgeSize: scaledEdge,
+    frontWidth,
+    frontHeight,
+    wrapWidth: scaledWrapCanvas.width,
+    wrapHeight: scaledWrapCanvas.height
+  };
+}
+
 function isPreviewCanvasTarget(target) {
   const { lowerCanvas, upperCanvas } = getCanvasPreviewElements();
   if (!target) return false;
@@ -6545,6 +6750,8 @@ document.getElementById("center-image").addEventListener("click", () => {
 window.getLocalStorage1Day = getLocalStorage1Day;
 window.setLocalStorage1Day = setLocalStorage1Day;
 window.appState = appState;
+window.p2pFabricCanvas = canvas;
+window.getP2PPreviewAssets = createPreviewAssets;
 
 document.querySelector('.frm-note-close').addEventListener('click', () => {
   document.querySelector('.frm-image-note').style.display = 'none';
