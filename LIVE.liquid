@@ -625,6 +625,7 @@
             <input type="hidden" name="properties[_pdp-color]" id="final-color">
             <input type="hidden" name="properties[_pdp-variant-id]" id="final-variant-id">
             <input type="hidden" name="properties[_pdp-mirror-mode]" id="mirror-mode-data" value="false">
+            <input type="hidden" name="properties[_pdp-print-on-side]" id="print-on-side-data" value="true">
             
             <input type="hidden" name="properties[_pdp-img-tag]" id="final-upscale-tag">
             <input type="hidden" name="properties[_pdp-allow-upscale]" id="final-upscale">
@@ -686,6 +687,17 @@
                       Mirror edges off
                     </button>
                     <p class="mirror-mode-hint">Preview mirrored side walls like Printify canvas wraps.</p>
+                  </div>
+                  <div class="mirror-mode-wrap">
+                    <button
+                      type="button"
+                      class="mirror-mode-toggle"
+                      id="print-on-side-toggle"
+                      aria-pressed="true"
+                    >
+                      Print on side on
+                    </button>
+                    <p class="mirror-mode-hint">Hide artwork on the wrapped side area without changing image placement.</p>
                   </div>
                   <div class="mode-btn edit active">
                     Design

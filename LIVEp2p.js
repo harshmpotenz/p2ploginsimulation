@@ -47,6 +47,7 @@ const appState = {
   baseEdgeType: "FitToEdge",
   selectedEdgeType: "FitToEdge",
   isMirrorMode: false,
+  isPrintOnSideEnabled: true,
   previewViewport: {
     scale: 1,
     minScale: 1,
@@ -73,6 +74,7 @@ const appState = {
 };
 
 const MIRROR_MODE_STORAGE_KEY = "p2pMirrorMode";
+const PRINT_ON_SIDE_STORAGE_KEY = "p2pPrintOnSide";
 
 let threedPreviewTimer = null;
 function triggerThreeDPreview() {
@@ -360,6 +362,109 @@ function initMirrorModeToggle() {
   setMirrorMode(storedValue === "true", { persist: false });
 }
 
+function getPrintOnSideCoverColor(edgeType = getEffectiveEdgeType()) {
+  return edgeType === "BlackWrap" ? "#000000" : "#ffffff";
+}
+
+function paintSideCoverAreas(targetCtx, canvasWidth, canvasHeight, edgeSize, fillColor = "#ffffff") {
+  if (!targetCtx || !Number.isFinite(edgeSize) || edgeSize <= 0) {
+    return;
+  }
+
+  const sideSize = Math.max(1, Math.round(edgeSize));
+  const middleHeight = Math.max(0, canvasHeight - sideSize * 2);
+
+  targetCtx.save();
+  targetCtx.fillStyle = fillColor;
+  targetCtx.fillRect(0, 0, canvasWidth, sideSize);
+  targetCtx.fillRect(0, canvasHeight - sideSize, canvasWidth, sideSize);
+  targetCtx.fillRect(0, sideSize, sideSize, middleHeight);
+  targetCtx.fillRect(canvasWidth - sideSize, sideSize, sideSize, middleHeight);
+  targetCtx.restore();
+}
+
+function drawCenterLinesOnTop(targetCtx) {
+  if (!targetCtx) return;
+
+  [vCenterLine, hCenterLine].forEach((line) => {
+    if (!line) return;
+
+    targetCtx.save();
+    targetCtx.globalAlpha = Number.isFinite(line.opacity) ? line.opacity : 1;
+    targetCtx.strokeStyle = line.stroke || "red";
+    targetCtx.lineWidth = Number.isFinite(line.strokeWidth) ? line.strokeWidth : 1;
+    targetCtx.setLineDash(Array.isArray(line.strokeDashArray) ? line.strokeDashArray : []);
+    targetCtx.beginPath();
+    targetCtx.moveTo(Number(line.x1) || 0, Number(line.y1) || 0);
+    targetCtx.lineTo(Number(line.x2) || 0, Number(line.y2) || 0);
+    targetCtx.stroke();
+    targetCtx.restore();
+  });
+}
+
+function syncPrintOnSideUI() {
+  const printOnSideToggleBtn = document.getElementById("print-on-side-toggle");
+  const printOnSideInput = document.getElementById("print-on-side-data");
+  const isActive = Boolean(appState.isPrintOnSideEnabled);
+
+  if (printOnSideToggleBtn) {
+    printOnSideToggleBtn.classList.toggle("is-active", isActive);
+    printOnSideToggleBtn.setAttribute("aria-pressed", String(isActive));
+    printOnSideToggleBtn.textContent = isActive ? "Print on side on" : "Print on side off";
+  }
+
+  if (printOnSideInput) {
+    printOnSideInput.value = isActive ? "true" : "false";
+  }
+}
+
+function setPrintOnSideEnabled(enabled, options = {}) {
+  const nextValue = Boolean(enabled);
+  const shouldPersist = options.persist !== false;
+
+  appState.isPrintOnSideEnabled = nextValue;
+
+  if (shouldPersist) {
+    try {
+      sessionStorage.setItem(PRINT_ON_SIDE_STORAGE_KEY, nextValue ? "true" : "false");
+    } catch (error) {
+      console.warn("Unable to persist print-on-side state:", error);
+    }
+  }
+
+  syncPrintOnSideUI();
+
+  if (typeof window.drawBorderOnTop === "function") {
+    window.drawBorderOnTop();
+  }
+  canvas.requestRenderAll();
+
+  if (typeof triggerThreeDPreview === "function") {
+    triggerThreeDPreview();
+  }
+}
+
+function initPrintOnSideToggle() {
+  const printOnSideToggleBtn = document.getElementById("print-on-side-toggle");
+  if (!printOnSideToggleBtn) return;
+
+  if (!printOnSideToggleBtn.dataset.boundPrintOnSideToggle) {
+    printOnSideToggleBtn.addEventListener("click", () => {
+      setPrintOnSideEnabled(!appState.isPrintOnSideEnabled);
+    });
+    printOnSideToggleBtn.dataset.boundPrintOnSideToggle = "true";
+  }
+
+  let storedValue = null;
+  try {
+    storedValue = sessionStorage.getItem(PRINT_ON_SIDE_STORAGE_KEY);
+  } catch (error) {
+    console.warn("Unable to read print-on-side state:", error);
+  }
+
+  setPrintOnSideEnabled(storedValue !== "false", { persist: false });
+}
+
 function createFrontFaceSnapshotCanvas(targetWidth, targetHeight) {
   const bounds = getCanvasFrontFaceBounds();
   const imageObject = appState.uploadedImage;
@@ -566,6 +671,7 @@ function drawMirroredEdgeStrips(ctx, faceCanvas, edgeSize, destX = 0, destY = 0,
 
   cornerConfigs.forEach(({ dx, dy, sx, sy }) => {
     ctx.save();
+
     ctx.translate(dx, dy);
     ctx.scale(-1, -1);
     ctx.drawImage(faceCanvas, sx, sy, cornerSampleSize, cornerSampleSize, 0, 0, edge, edge);
@@ -726,6 +832,19 @@ function createPreviewWrapCanvas() {
   }
 
   wrapCtx.imageSmoothingEnabled = true;
+
+  if (!appState.isPrintOnSideEnabled) {
+    const sideCoverColor = getPrintOnSideCoverColor(effectiveEdgeType);
+    wrapCtx.fillStyle = sideCoverColor;
+    wrapCtx.fillRect(0, 0, wrapCanvas.width, wrapCanvas.height);
+    wrapCtx.drawImage(frontCanvas, edgeSize, edgeSize, bounds.width, bounds.height);
+    return {
+      wrapCanvas,
+      frontCanvas,
+      edgeSize,
+      wrapType: effectiveEdgeType
+    };
+  }
 
   if (effectiveEdgeType === "MirrorWrap") {
     wrapCtx.fillStyle = "#ffffff";
@@ -1440,6 +1559,8 @@ document.addEventListener("DOMContentLoaded", initWrapSelector);
 window.addEventListener("load", initWrapSelector);
 document.addEventListener("DOMContentLoaded", initMirrorModeToggle);
 window.addEventListener("load", initMirrorModeToggle);
+document.addEventListener("DOMContentLoaded", initPrintOnSideToggle);
+window.addEventListener("load", initPrintOnSideToggle);
 document.addEventListener("DOMContentLoaded", initCanvasPreviewInteractions);
 window.addEventListener("load", initCanvasPreviewInteractions);
 function initWrapSelector() {
@@ -2188,6 +2309,10 @@ function updateFrameFromPixels(width, height, width1, height1) {
 
     ctx.save();
 
+    if (!appState.isPrintOnSideEnabled) {
+      paintSideCoverAreas(ctx, bw, bh, borderSize, getPrintOnSideCoverColor());
+    }
+
 
     const dashOffset = 0.5;
     ctx.setLineDash([8, 6]);
@@ -2207,7 +2332,7 @@ function updateFrameFromPixels(width, height, width1, height1) {
 
     ctx.setLineDash([]);
 
-    const mirrorPreviewDrawn = drawMirrorPreviewOnTop(ctx, borderSize);
+    const mirrorPreviewDrawn = appState.isPrintOnSideEnabled && drawMirrorPreviewOnTop(ctx, borderSize);
 
     if (!mirrorPreviewDrawn) {
       ctx.fillStyle = "#ffffff00";
@@ -2243,6 +2368,7 @@ function updateFrameFromPixels(width, height, width1, height1) {
     // ctx.fillText("SIDE AND BACK", 0, 0);
     // ctx.restore();
 
+    drawCenterLinesOnTop(ctx);
     ctx.restore();
   }
 
@@ -5659,6 +5785,10 @@ async function generateCanvasWithBlackEdge() {
     );
 
     // Draw border
+    if (!appState.isPrintOnSideEnabled) {
+      paintSideCoverAreas(ctx1, canvasnewblack.width, canvasnewblack.height, appState.newBorder || 0, getPrintOnSideCoverColor("BlackWrap"));
+    }
+
     ctx1.strokeStyle = appState.borderColor || "#000000";
     ctx1.lineWidth = (appState.newBorder || 10) * 2;
 
@@ -6067,7 +6197,11 @@ async function generateCanvasWithMirrorEdge() {
   ctx1.fillRect(0, 0, canvasnewblack.width, canvasnewblack.height);
   ctx1.imageSmoothingEnabled = true;
 
-  drawMirroredEdgeStrips(ctx1, faceCanvas, edgeSize, 0, 0, true);
+  if (appState.isPrintOnSideEnabled) {
+    drawMirroredEdgeStrips(ctx1, faceCanvas, edgeSize, 0, 0, true);
+  } else {
+    ctx1.drawImage(faceCanvas, edgeSize, edgeSize, faceWidth, faceHeight);
+  }
 
   return uploadRenderedEdgeCanvas(canvasnewblack, "canvas-with-mirror-edge.jpeg");
 }
@@ -6407,6 +6541,10 @@ async function generateCanvasWithWhiteEdge() {
     );
 
     // Draw border
+    if (!appState.isPrintOnSideEnabled) {
+      paintSideCoverAreas(ctx1, canvasnewblack.width, canvasnewblack.height, appState.newBorder || 0, getPrintOnSideCoverColor("WhiteWrap"));
+    }
+
     ctx1.strokeStyle = "#fff";
     ctx1.lineWidth = (appState.newBorder || 10) * 2;
 
