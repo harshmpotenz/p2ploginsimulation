@@ -1753,9 +1753,9 @@ console.log("userTop", userTop);
             });
           }
 
-          const frontW = Math.max(1, activeAssets.frontWidth || activeAssets.frontCanvas.width);
-          const frontH = Math.max(1, activeAssets.frontHeight || activeAssets.frontCanvas.height);
-          const depth = Math.max(1, activeAssets.edgeSize || activeAssets.rightCanvas.width);
+          const frontW = Math.max(1, activeAssets.modelFrontWidth || activeAssets.frontWidth || activeAssets.frontCanvas.width);
+          const frontH = Math.max(1, activeAssets.modelFrontHeight || activeAssets.frontHeight || activeAssets.frontCanvas.height);
+          const depth = Math.max(1, activeAssets.modelEdgeSize || activeAssets.edgeSize || activeAssets.rightCanvas.width);
           const modelWidth = frontW / 110;
           const modelHeight = frontH / 110;
           const modelDepth = depth / 120;

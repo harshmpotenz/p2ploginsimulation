@@ -795,6 +795,9 @@ function createPreviewAssets(maxLongSide = 1400) {
     edgeSize: scaledEdge,
     frontWidth,
     frontHeight,
+    modelFrontWidth: Math.max(1, Math.round(previewWrap.frontCanvas.width)),
+    modelFrontHeight: Math.max(1, Math.round(previewWrap.frontCanvas.height)),
+    modelEdgeSize: Math.max(1, Math.round(previewWrap.edgeSize)),
     wrapWidth: scaledWrapCanvas.width,
     wrapHeight: scaledWrapCanvas.height
   };
@@ -2187,8 +2190,8 @@ function updateFrameFromPixels(width, height, width1, height1) {
 
 
     const dashOffset = 0.5;
-    ctx.setLineDash([5, 2]);
-    ctx.lineWidth = 0.5;
+    ctx.setLineDash([8, 6]);
+    ctx.lineWidth = 5;
     ctx.strokeStyle = "#000";
 
     ctx.beginPath(); ctx.moveTo(0, dashOffset); ctx.lineTo(bw, dashOffset); ctx.stroke();

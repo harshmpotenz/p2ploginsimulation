@@ -1868,8 +1868,8 @@ function drawBorderOnTop() {
 
   
  const dashOffset = 0.5; 
-  ctx.setLineDash([5, 2]);
-  ctx.lineWidth = 0.5;
+  ctx.setLineDash([8, 6]);
+  ctx.lineWidth = 1.5;
   ctx.strokeStyle = "#000";
 
   ctx.beginPath(); ctx.moveTo(0, dashOffset); ctx.lineTo(bw, dashOffset); ctx.stroke(); 

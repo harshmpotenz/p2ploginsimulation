@@ -1,0 +1,905 @@
+{
+  "_id": "5d6b0ebd-ca7c-439e-9aec-5b6a683f6043",
+  "googlePlaceId": "ChIJqXLkyCIttokRL7aDFgsmrWQ",
+  "createdAt": {
+    "$date": "2025-10-06T06:04:24.112Z"
+  },
+  "isClaimed": false,
+  "updatedAt": {
+    "$date": "2026-01-06T09:04:23.906Z"
+  },
+  "last_place_api_run_dt": {
+    "$date": "2025-11-04T12:13:31.582Z"
+  },
+  "googlePlaceData": {
+    "name": "places/ChIJqXLkyCIttokRL7aDFgsmrWQ",
+    "id": "ChIJqXLkyCIttokRL7aDFgsmrWQ",
+    "types": [
+      "finance",
+      "point_of_interest",
+      "establishment"
+    ],
+    "nationalPhoneNumber": "(240) 541-5614",
+    "internationalPhoneNumber": "+1 240-541-5614",
+    "formattedAddress": "806 W Diamond Ave #340, Gaithersburg, MD 20878, USA",
+    "addressComponents": [
+      {
+        "longText": "340",
+        "shortText": "340",
+        "types": [
+          "subpremise"
+        ],
+        "languageCode": "en"
+      },
+      {
+        "longText": "806",
+        "shortText": "806",
+        "types": [
+          "street_number"
+        ],
+        "languageCode": "en-US"
+      },
+      {
+        "longText": "West Diamond Avenue",
+        "shortText": "W Diamond Ave",
+        "types": [
+          "route"
+        ],
+        "languageCode": "en"
+      },
+      {
+        "longText": "Gaithersburg",
+        "shortText": "Gaithersburg",
+        "types": [
+          "locality",
+          "political"
+        ],
+        "languageCode": "en"
+      },
+      {
+        "longText": "Montgomery County",
+        "shortText": "Montgomery County",
+        "types": [
+          "administrative_area_level_2",
+          "political"
+        ],
+        "languageCode": "en"
+      },
+      {
+        "longText": "Maryland",
+        "shortText": "MD",
+        "types": [
+          "administrative_area_level_1",
+          "political"
+        ],
+        "languageCode": "en"
+      },
+      {
+        "longText": "United States",
+        "shortText": "US",
+        "types": [
+          "country",
+          "political"
+        ],
+        "languageCode": "en"
+      },
+      {
+        "longText": "20878",
+        "shortText": "20878",
+        "types": [
+          "postal_code"
+        ],
+        "languageCode": "en-US"
+      }
+    ],
+    "plusCode": {
+      "globalCode": "87F44QRM+WM",
+      "compoundCode": "4QRM+WM Gaithersburg, MD, USA"
+    },
+    "location": {
+      "latitude": 39.1422678,
+      "longitude": -77.2158438
+    },
+    "viewport": {
+      "low": {
+        "latitude": 39.140937169708494,
+        "longitude": -77.21714313029152
+      },
+      "high": {
+        "latitude": 39.14363513029149,
+        "longitude": -77.21444516970851
+      }
+    },
+    "rating": 4.9,
+    "googleMapsUri": "https://maps.google.com/?cid=7254496403827963439&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
+    "websiteUri": "http://www.newfundingresources.com/?utm_campaign=gmb",
+    "regularOpeningHours": {
+      "openNow": false,
+      "periods": [
+        {
+          "open": {
+            "day": 1,
+            "hour": 9,
+            "minute": 0
+          },
+          "close": {
+            "day": 1,
+            "hour": 18,
+            "minute": 0
+          }
+        },
+        {
+          "open": {
+            "day": 2,
+            "hour": 9,
+            "minute": 0
+          },
+          "close": {
+            "day": 2,
+            "hour": 18,
+            "minute": 0
+          }
+        },
+        {
+          "open": {
+            "day": 3,
+            "hour": 9,
+            "minute": 0
+          },
+          "close": {
+            "day": 3,
+            "hour": 18,
+            "minute": 0
+          }
+        },
+        {
+          "open": {
+            "day": 4,
+            "hour": 9,
+            "minute": 0
+          },
+          "close": {
+            "day": 4,
+            "hour": 18,
+            "minute": 0
+          }
+        },
+        {
+          "open": {
+            "day": 5,
+            "hour": 9,
+            "minute": 0
+          },
+          "close": {
+            "day": 5,
+            "hour": 18,
+            "minute": 0
+          }
+        }
+      ],
+      "weekdayDescriptions": [
+        "Monday: 9:00 AM – 6:00 PM",
+        "Tuesday: 9:00 AM – 6:00 PM",
+        "Wednesday: 9:00 AM – 6:00 PM",
+        "Thursday: 9:00 AM – 6:00 PM",
+        "Friday: 9:00 AM – 6:00 PM",
+        "Saturday: Closed",
+        "Sunday: Closed"
+      ],
+      "nextOpenTime": "2025-11-04T14:00:00Z"
+    },
+    "utcOffsetMinutes": -300,
+    "adrFormatAddress": "<span class=\"street-address\">806 W Diamond Ave #340</span>, <span class=\"locality\">Gaithersburg</span>, <span class=\"region\">MD</span> <span class=\"postal-code\">20878</span>, <span class=\"country-name\">USA</span>",
+    "businessStatus": "OPERATIONAL",
+    "userRatingCount": 117,
+    "iconMaskBaseUri": "https://maps.gstatic.com/mapfiles/place_api/icons/v2/generic_pinlet",
+    "iconBackgroundColor": "#7B9EB0",
+    "displayName": {
+      "text": "New Funding Resources - Hard Money Lenders",
+      "languageCode": "en"
+    },
+    "primaryTypeDisplayName": {
+      "text": "Banking and Finance",
+      "languageCode": "en-US"
+    },
+    "currentOpeningHours": {
+      "openNow": false,
+      "periods": [
+        {
+          "open": {
+            "day": 1,
+            "hour": 9,
+            "minute": 0,
+            "date": {
+              "year": 2025,
+              "month": 11,
+              "day": 10
+            }
+          },
+          "close": {
+            "day": 1,
+            "hour": 18,
+            "minute": 0,
+            "date": {
+              "year": 2025,
+              "month": 11,
+              "day": 10
+            }
+          }
+        },
+        {
+          "open": {
+            "day": 2,
+            "hour": 9,
+            "minute": 0,
+            "date": {
+              "year": 2025,
+              "month": 11,
+              "day": 4
+            }
+          },
+          "close": {
+            "day": 2,
+            "hour": 18,
+            "minute": 0,
+            "date": {
+              "year": 2025,
+              "month": 11,
+              "day": 4
+            }
+          }
+        },
+        {
+          "open": {
+            "day": 3,
+            "hour": 9,
+            "minute": 0,
+            "date": {
+              "year": 2025,
+              "month": 11,
+              "day": 5
+            }
+          },
+          "close": {
+            "day": 3,
+            "hour": 18,
+            "minute": 0,
+            "date": {
+              "year": 2025,
+              "month": 11,
+              "day": 5
+            }
+          }
+        },
+        {
+          "open": {
+            "day": 4,
+            "hour": 9,
+            "minute": 0,
+            "date": {
+              "year": 2025,
+              "month": 11,
+              "day": 6
+            }
+          },
+          "close": {
+            "day": 4,
+            "hour": 18,
+            "minute": 0,
+            "date": {
+              "year": 2025,
+              "month": 11,
+              "day": 6
+            }
+          }
+        },
+        {
+          "open": {
+            "day": 5,
+            "hour": 9,
+            "minute": 0,
+            "date": {
+              "year": 2025,
+              "month": 11,
+              "day": 7
+            }
+          },
+          "close": {
+            "day": 5,
+            "hour": 18,
+            "minute": 0,
+            "date": {
+              "year": 2025,
+              "month": 11,
+              "day": 7
+            }
+          }
+        }
+      ],
+      "weekdayDescriptions": [
+        "Monday: 9:00 AM – 6:00 PM",
+        "Tuesday: 9:00 AM – 6:00 PM",
+        "Wednesday: 9:00 AM – 6:00 PM",
+        "Thursday: 9:00 AM – 6:00 PM",
+        "Friday: 9:00 AM – 6:00 PM",
+        "Saturday: Closed",
+        "Sunday: Closed"
+      ],
+      "nextOpenTime": "2025-11-04T14:00:00Z"
+    },
+    "primaryType": "finance",
+    "shortFormattedAddress": "806 W Diamond Ave #340, Gaithersburg",
+    "reviews": [
+      {
+        "name": "places/ChIJqXLkyCIttokRL7aDFgsmrWQ/reviews/Ci9DQUlRQUNvZENodHljRjlvT2pOR1FYaHFjM2czVlV0VFlYWm1aVUZhUkRod1UxRRAB",
+        "relativePublishTimeDescription": "3 months ago",
+        "rating": 5,
+        "text": {
+          "text": "I had an excellent experience working with New Funding Resources, especially Anastasia and Melissa, throughout my renovation loan process. As a first-time fix-and-flip investor, I had many questions and uncertainties, but they were there for me every step of the way.\n\nThey were incredibly responsive, transparent, and patient. Anastasia ensured the process moved smoothly and fairly, and Melissa was extremely organized and helpful during underwriting and documentation. I never felt lost or left on my own — they truly walked me through the entire process.\n\nWhat stood out most was how much they care about their clients’ success. They stand by their word, communicate clearly, and treat you like a real partner.\n\nIf you're looking for a trustworthy, knowledgeable, and professional lender, I highly recommend New Funding Resources.\n\nThank you again for everything!",
+          "languageCode": "en"
+        },
+        "originalText": {
+          "text": "I had an excellent experience working with New Funding Resources, especially Anastasia and Melissa, throughout my renovation loan process. As a first-time fix-and-flip investor, I had many questions and uncertainties, but they were there for me every step of the way.\n\nThey were incredibly responsive, transparent, and patient. Anastasia ensured the process moved smoothly and fairly, and Melissa was extremely organized and helpful during underwriting and documentation. I never felt lost or left on my own — they truly walked me through the entire process.\n\nWhat stood out most was how much they care about their clients’ success. They stand by their word, communicate clearly, and treat you like a real partner.\n\nIf you're looking for a trustworthy, knowledgeable, and professional lender, I highly recommend New Funding Resources.\n\nThank you again for everything!",
+          "languageCode": "en"
+        },
+        "authorAttribution": {
+          "displayName": "Dani Aounali",
+          "uri": "https://www.google.com/maps/contrib/111318159916009190449/reviews",
+          "photoUri": "https://lh3.googleusercontent.com/a/ACg8ocL5w_AbF22ub0cn9_KUAqYEjzQVHeek1mUER0tig0H0F_yBwQ=s128-c0x00000000-cc-rp-mo"
+        },
+        "publishTime": "2025-07-30T14:59:32.099312959Z",
+        "flagContentUri": "https://www.google.com/local/review/rap/report?postId=Ci9DQUlRQUNvZENodHljRjlvT2pOR1FYaHFjM2czVlV0VFlYWm1aVUZhUkRod1UxRRAB&d=17924085&t=1",
+        "googleMapsUri": "https://www.google.com/maps/reviews/data=!4m6!14m5!1m4!2m3!1sCi9DQUlRQUNvZENodHljRjlvT2pOR1FYaHFjM2czVlV0VFlYWm1aVUZhUkRod1UxRRAB!2m1!1s0x89b62d22c8e472a9:0x64ad260b1683b62f"
+      },
+      {
+        "name": "places/ChIJqXLkyCIttokRL7aDFgsmrWQ/reviews/Ci9DQUlRQUNvZENodHljRjlvT2twVmFtcFZZMTk0UjNock9Xb3dkaTFxUVVWblZGRRAB",
+        "relativePublishTimeDescription": "3 months ago",
+        "rating": 5,
+        "text": {
+          "text": "New Funding service is amazing. It was great working with Melissa. She explained the process step-by-step, and guided me from the beginning until the end. I close on my first property under New Funding in 8 days. This company is very professional with great communication and easy to work with. I look forward on partnering with New Funding on many deals in the future",
+          "languageCode": "en"
+        },
+        "originalText": {
+          "text": "New Funding service is amazing. It was great working with Melissa. She explained the process step-by-step, and guided me from the beginning until the end. I close on my first property under New Funding in 8 days. This company is very professional with great communication and easy to work with. I look forward on partnering with New Funding on many deals in the future",
+          "languageCode": "en"
+        },
+        "authorAttribution": {
+          "displayName": "Fresh Green Corporate",
+          "uri": "https://www.google.com/maps/contrib/111735181973470673260/reviews",
+          "photoUri": "https://lh3.googleusercontent.com/a/ACg8ocKXY9Pv0ZTzlMLDf0gBkfLTkzCEOl12YpiYBlbNsTs78Yq_8Q=s128-c0x00000000-cc-rp-mo"
+        },
+        "publishTime": "2025-07-17T20:29:53.400546174Z",
+        "flagContentUri": "https://www.google.com/local/review/rap/report?postId=Ci9DQUlRQUNvZENodHljRjlvT2twVmFtcFZZMTk0UjNock9Xb3dkaTFxUVVWblZGRRAB&d=17924085&t=1",
+        "googleMapsUri": "https://www.google.com/maps/reviews/data=!4m6!14m5!1m4!2m3!1sCi9DQUlRQUNvZENodHljRjlvT2twVmFtcFZZMTk0UjNock9Xb3dkaTFxUVVWblZGRRAB!2m1!1s0x89b62d22c8e472a9:0x64ad260b1683b62f"
+      },
+      {
+        "name": "places/ChIJqXLkyCIttokRL7aDFgsmrWQ/reviews/ChZDSUhNMG9nS0VJQ0FnSUNYbmVtU0tnEAE",
+        "relativePublishTimeDescription": "a year ago",
+        "rating": 5,
+        "text": {
+          "text": "We had an excellent experience working with Anastasia from New funding resources. They understood our scenario and helped us with funding and guidance from\nstart to finish when we needed it the most. Anastasia, Melissa and Kyle were all very helpful and guided us at every stage of the home renovation project. We are truly grateful at New funding resources for giving us the opportunity to thrive in this very high competitive real estate market.",
+          "languageCode": "en"
+        },
+        "originalText": {
+          "text": "We had an excellent experience working with Anastasia from New funding resources. They understood our scenario and helped us with funding and guidance from\nstart to finish when we needed it the most. Anastasia, Melissa and Kyle were all very helpful and guided us at every stage of the home renovation project. We are truly grateful at New funding resources for giving us the opportunity to thrive in this very high competitive real estate market.",
+          "languageCode": "en"
+        },
+        "authorAttribution": {
+          "displayName": "Jaideep Kantharaj",
+          "uri": "https://www.google.com/maps/contrib/100012331900701189009/reviews",
+          "photoUri": "https://lh3.googleusercontent.com/a/ACg8ocJPzMftDTMbVfF5BcBUoxkHltBWllIGbE29xIbTfJKcJ29agw=s128-c0x00000000-cc-rp-mo"
+        },
+        "publishTime": "2024-10-19T14:31:29.747197Z",
+        "flagContentUri": "https://www.google.com/local/review/rap/report?postId=ChZDSUhNMG9nS0VJQ0FnSUNYbmVtU0tnEAE&d=17924085&t=1",
+        "googleMapsUri": "https://www.google.com/maps/reviews/data=!4m6!14m5!1m4!2m3!1sChZDSUhNMG9nS0VJQ0FnSUNYbmVtU0tnEAE!2m1!1s0x89b62d22c8e472a9:0x64ad260b1683b62f"
+      },
+      {
+        "name": "places/ChIJqXLkyCIttokRL7aDFgsmrWQ/reviews/ChZDSUhNMG9nS0VJQ0FnSUNUa2JpQ1ZBEAE",
+        "relativePublishTimeDescription": "a year ago",
+        "rating": 5,
+        "text": {
+          "text": "New Funding Resources has been a pleasure to work with throughout my loan application process.\nAfter speaking and qualifying with several other remote lenders I found New Funding Resources.\nI immediately noticed the difference from the other lenders. They were immediately responsive, efficient, and knowledgeable about the local real estate market. The entire application process was handled proficiently in house, by experienced senior staff, Melissa, and the owner, Kyle, unlike the other lenders with multiple entities and inexperienced staff. I immediately felt more comfortable with their straightforward and honest approach. They were flexible with their requirements, recognizing my unique conditions. The result was a very competitive cost with quick approval and no last minute surprises or problems. They have also developed an excellent follow-up support system and knowledge base to advise and support their investors. They want you to succeed. This lender checks all the boxes. Thank you, Melissa and Kyle, for the exceptional service.",
+          "languageCode": "en"
+        },
+        "originalText": {
+          "text": "New Funding Resources has been a pleasure to work with throughout my loan application process.\nAfter speaking and qualifying with several other remote lenders I found New Funding Resources.\nI immediately noticed the difference from the other lenders. They were immediately responsive, efficient, and knowledgeable about the local real estate market. The entire application process was handled proficiently in house, by experienced senior staff, Melissa, and the owner, Kyle, unlike the other lenders with multiple entities and inexperienced staff. I immediately felt more comfortable with their straightforward and honest approach. They were flexible with their requirements, recognizing my unique conditions. The result was a very competitive cost with quick approval and no last minute surprises or problems. They have also developed an excellent follow-up support system and knowledge base to advise and support their investors. They want you to succeed. This lender checks all the boxes. Thank you, Melissa and Kyle, for the exceptional service.",
+          "languageCode": "en"
+        },
+        "authorAttribution": {
+          "displayName": "Edward T.",
+          "uri": "https://www.google.com/maps/contrib/102640387656247249790/reviews",
+          "photoUri": "https://lh3.googleusercontent.com/a/ACg8ocJEqgTcvYvCLtqx6V21LEkwZ7icC-KVsSmVhjkHmWLHlNHULA=s128-c0x00000000-cc-rp-mo"
+        },
+        "publishTime": "2024-05-15T20:01:13.779585Z",
+        "flagContentUri": "https://www.google.com/local/review/rap/report?postId=ChZDSUhNMG9nS0VJQ0FnSUNUa2JpQ1ZBEAE&d=17924085&t=1",
+        "googleMapsUri": "https://www.google.com/maps/reviews/data=!4m6!14m5!1m4!2m3!1sChZDSUhNMG9nS0VJQ0FnSUNUa2JpQ1ZBEAE!2m1!1s0x89b62d22c8e472a9:0x64ad260b1683b62f"
+      },
+      {
+        "name": "places/ChIJqXLkyCIttokRL7aDFgsmrWQ/reviews/ChdDSUhNMG9nS0VJQ0FnSURqajlTUG5BRRAB",
+        "relativePublishTimeDescription": "a year ago",
+        "rating": 5,
+        "text": {
+          "text": "I am so glad I found New Funding Resources. I wanted to sell an inherited property, but it needed a lot of work to list it. I was going into personal funds initially and putting stuff on my credit cards until I realized I just could not keep funding the project personally. I reached out to New Funding Resources to inquire about Hard Money for the renovations and thank God they were able to help. They gave me the cash I needed to get the repairs and renovations done that I needed. The turnaround time from application to receipt of funds was relatively quick. I cannot adequately express how grateful I am for their help. I had the pleasure of working with Anastasia and Melissa throughout and they both were just a joy to work with throughout. The contractors discovered a major problem with the downspouts and water going down to the foundation of my house and they needed to redo the entire drainage system. It was a major unexpected expense, but thanks to New Funding Resources I was able to get the job done. I have remained in contact with  New Funding Resources during the renovations and received some guidance on how to receive additional help should I need to do so to get the job done.\n\nI want to build on another lot I own in the near future, and I will probably use them to fund the construction there as well.  They were just there every step of the way on my current project, and they made the process easy. If you are thinking to fix and flip or to do construction, I suggest you give New Funding Resources a call and ask for Anastasia or Melissa. You will not regret the call. This has truly been the best experience for me and I am extremely grateful to them. Thanks so much to New Funding Resources!!",
+          "languageCode": "en"
+        },
+        "originalText": {
+          "text": "I am so glad I found New Funding Resources. I wanted to sell an inherited property, but it needed a lot of work to list it. I was going into personal funds initially and putting stuff on my credit cards until I realized I just could not keep funding the project personally. I reached out to New Funding Resources to inquire about Hard Money for the renovations and thank God they were able to help. They gave me the cash I needed to get the repairs and renovations done that I needed. The turnaround time from application to receipt of funds was relatively quick. I cannot adequately express how grateful I am for their help. I had the pleasure of working with Anastasia and Melissa throughout and they both were just a joy to work with throughout. The contractors discovered a major problem with the downspouts and water going down to the foundation of my house and they needed to redo the entire drainage system. It was a major unexpected expense, but thanks to New Funding Resources I was able to get the job done. I have remained in contact with  New Funding Resources during the renovations and received some guidance on how to receive additional help should I need to do so to get the job done.\n\nI want to build on another lot I own in the near future, and I will probably use them to fund the construction there as well.  They were just there every step of the way on my current project, and they made the process easy. If you are thinking to fix and flip or to do construction, I suggest you give New Funding Resources a call and ask for Anastasia or Melissa. You will not regret the call. This has truly been the best experience for me and I am extremely grateful to them. Thanks so much to New Funding Resources!!",
+          "languageCode": "en"
+        },
+        "authorAttribution": {
+          "displayName": "Hoffman",
+          "uri": "https://www.google.com/maps/contrib/110457308458856144505/reviews",
+          "photoUri": "https://lh3.googleusercontent.com/a/ACg8ocIW0U3dShuHYz04Nv7psysCWy5SY96l5p4o2l0bv_AkReJBN3k=s128-c0x00000000-cc-rp-mo-ba2"
+        },
+        "publishTime": "2024-05-10T06:38:59.030519Z",
+        "flagContentUri": "https://www.google.com/local/review/rap/report?postId=ChdDSUhNMG9nS0VJQ0FnSURqajlTUG5BRRAB&d=17924085&t=1",
+        "googleMapsUri": "https://www.google.com/maps/reviews/data=!4m6!14m5!1m4!2m3!1sChdDSUhNMG9nS0VJQ0FnSURqajlTUG5BRRAB!2m1!1s0x89b62d22c8e472a9:0x64ad260b1683b62f"
+      }
+    ],
+    "photos": [
+      {
+        "name": "places/ChIJqXLkyCIttokRL7aDFgsmrWQ/photos/AWn5SU4rm43yZCTqallAFOggB5RU0ik9l3qa1iLB-FnoLIJWa_TNig0UdxOYEGqCLiFGjMI-LNPoA2JpUCp_dZdBTmaiwcmhFSYcpuGs7Dt9FLSZeHTgmKMI8UK_6rmTJI0fHC00oauyeXO4RBwuvIV4ja3bOnIa5XPURyIwzoGLo3N886KpJeQBWSaCNJlcF43IoU6xf2CWIBQEI0ici83Lf0A_DfJE35ZgVIN8MX-nYfogEX8UpgJ37ZCM9WAtjdZj6hlUThAlWGXNHFaSOhBvRoZo90G-jUPFfSNYAvEofv7qDQ",
+        "widthPx": 2508,
+        "heightPx": 1672,
+        "authorAttributions": [
+          {
+            "displayName": "New Funding Resources - Hard Money Lenders",
+            "uri": "https://maps.google.com/maps/contrib/114559082863476583402",
+            "photoUri": "https://lh3.googleusercontent.com/a-/ALV-UjUqtzh1FCUmAyl2SVjtt0jeIyzMHhiOvZJWc9-sDGCOKfajfBg=s100-p-k-no-mo"
+          }
+        ],
+        "flagContentUri": "https://www.google.com/local/imagery/report/?cb_client=maps_api_places.places_api&image_key=!1e10!2sAF1QipP_gVXTm9iecUMB8sgdd6d6x6CGaO416UVRBsU6&hl=en-US",
+        "googleMapsUri": "https://www.google.com/maps/place//data=!3m4!1e2!3m2!1sAF1QipP_gVXTm9iecUMB8sgdd6d6x6CGaO416UVRBsU6!2e10!4m2!3m1!1s0x89b62d22c8e472a9:0x64ad260b1683b62f"
+      },
+      {
+        "name": "places/ChIJqXLkyCIttokRL7aDFgsmrWQ/photos/AWn5SU6A-2FLUQ54ES4LCICLvtrjbK8j3eTqCqygomi2FXzcEv4v661vLLEy0ZvcfMrrvNrumJwv4l4Oh2oabVGdIMpleZBhCaTv6678tYIGB9pi0hCs61JxUzaT_Oob66XBr2IfFmUtoWssBf012_U7-04HIWuLCNZoFSihh3Orxhs0QsRGbytAQFe5tcbRcDOj9nWJ030l3EB91CW0cObjciXDiS9bxbPYX-qaB_JtWaBjfxVHZAZcrKOF7vSQ32DD7SJgNdTnQB717w2op50d_HySd9sNa86EpyLcz18E9ZbIVA",
+        "widthPx": 2000,
+        "heightPx": 1335,
+        "authorAttributions": [
+          {
+            "displayName": "New Funding Resources - Hard Money Lenders",
+            "uri": "https://maps.google.com/maps/contrib/114559082863476583402",
+            "photoUri": "https://lh3.googleusercontent.com/a-/ALV-UjUqtzh1FCUmAyl2SVjtt0jeIyzMHhiOvZJWc9-sDGCOKfajfBg=s100-p-k-no-mo"
+          }
+        ],
+        "flagContentUri": "https://www.google.com/local/imagery/report/?cb_client=maps_api_places.places_api&image_key=!1e10!2sAF1QipPnKLms-6tHqQgU86W7_bnrQBi47C4f3JNsFH_5&hl=en-US",
+        "googleMapsUri": "https://www.google.com/maps/place//data=!3m4!1e2!3m2!1sAF1QipPnKLms-6tHqQgU86W7_bnrQBi47C4f3JNsFH_5!2e10!4m2!3m1!1s0x89b62d22c8e472a9:0x64ad260b1683b62f"
+      },
+      {
+        "name": "places/ChIJqXLkyCIttokRL7aDFgsmrWQ/photos/AWn5SU53UeB_rH94t5OXWa-8qasqG1nt88ArIsPNnc0o8DwlQ91ky5QjfGtEKtvB8nnByN3voAghiV7mB39JHZl3i7HTxbY12BJDm-aoIagmfOfqTCm8zAJ6qlCzTCKYU45r9EzWw4FKxxPeFR4oyTx6mJm3GSLAzwzppMsp1FyO05tnbWexDHgkmm7lQxDp9oOQL4s_dSGX7Lto_yn4u1kc4tUIMEJMWckwVXcqI9SqkxTWewwqrR6PXnyMvz9DBbvn8kr3-H51E0a7JzgcuQXBTumf19UrzA8AG4A0YkE9B_Xtdg",
+        "widthPx": 855,
+        "heightPx": 855,
+        "authorAttributions": [
+          {
+            "displayName": "New Funding Resources - Hard Money Lenders",
+            "uri": "https://maps.google.com/maps/contrib/114559082863476583402",
+            "photoUri": "https://lh3.googleusercontent.com/a-/ALV-UjUqtzh1FCUmAyl2SVjtt0jeIyzMHhiOvZJWc9-sDGCOKfajfBg=s100-p-k-no-mo"
+          }
+        ],
+        "flagContentUri": "https://www.google.com/local/imagery/report/?cb_client=maps_api_places.places_api&image_key=!1e10!2sAF1QipOnK4vStSbhP_jNA8FJ06ml_iIBgZ_pDHTr9Fiz&hl=en-US",
+        "googleMapsUri": "https://www.google.com/maps/place//data=!3m4!1e2!3m2!1sAF1QipOnK4vStSbhP_jNA8FJ06ml_iIBgZ_pDHTr9Fiz!2e10!4m2!3m1!1s0x89b62d22c8e472a9:0x64ad260b1683b62f"
+      },
+      {
+        "name": "places/ChIJqXLkyCIttokRL7aDFgsmrWQ/photos/AWn5SU6KvYnMfE0yD8n-QsVJ9w1B-mNYGYyL_bIU-ZMFJDf137Stdy-bvKSMQQ2y-GVv5omN02TZHZ8s_mXWG-REgjYvkaiusViKSsEKClbwKJhJwkD7iIP0igJXJWG1mpxanyCxfNUibynt4pJlT00jX-H2FJQTF_YgOasfKa5qiRdJ9k6kDFjQeIE00HzU1nAuRXu9n-PZj5z5zOADtaDoSXfER07BdBnnapu-bql7y9gwuuXYZZG_ZQwUnySdwRMdPlaaaNSWqZ8xaRWF5pWhBTIwyccBzz-PiadBXvvwIUq57w",
+        "widthPx": 1300,
+        "heightPx": 854,
+        "authorAttributions": [
+          {
+            "displayName": "New Funding Resources - Hard Money Lenders",
+            "uri": "https://maps.google.com/maps/contrib/114559082863476583402",
+            "photoUri": "https://lh3.googleusercontent.com/a-/ALV-UjUqtzh1FCUmAyl2SVjtt0jeIyzMHhiOvZJWc9-sDGCOKfajfBg=s100-p-k-no-mo"
+          }
+        ],
+        "flagContentUri": "https://www.google.com/local/imagery/report/?cb_client=maps_api_places.places_api&image_key=!1e10!2sAF1QipNdBoQ6gnEfTrdtvlSk2TsCnwtaWtwu0dk5aozd&hl=en-US",
+        "googleMapsUri": "https://www.google.com/maps/place//data=!3m4!1e2!3m2!1sAF1QipNdBoQ6gnEfTrdtvlSk2TsCnwtaWtwu0dk5aozd!2e10!4m2!3m1!1s0x89b62d22c8e472a9:0x64ad260b1683b62f"
+      },
+      {
+        "name": "places/ChIJqXLkyCIttokRL7aDFgsmrWQ/photos/AWn5SU6Jgr-1kmVHXxKb2u6Pb4mBnLqb63Hi-6HS43S7eaYtpXf71WZ5QyBh52aBhIaWmhPhTgA4-c0liV_DtxBCKQeL_E3aFmRAAYgirl6neOiwbMVT6E1jP1Mvi1LPmqwppPZDgXShLzlYgqN6edOym-1A7_3LygtQ9Rr9OKeW-qNxFV76XlnZCoOTv8wmyjrF3uNoTD0DVVdQxUlXRUeXkphKUCnLn5vnPyzUcve6AWFjejC--8_WBELiSQ0q9WlPZgTw3kyXceihhrNiIwwcw6ly8xWFKPYDuiewa9IQxJoBFA",
+        "widthPx": 312,
+        "heightPx": 312,
+        "authorAttributions": [
+          {
+            "displayName": "New Funding Resources - Hard Money Lenders",
+            "uri": "https://maps.google.com/maps/contrib/114559082863476583402",
+            "photoUri": "https://lh3.googleusercontent.com/a-/ALV-UjUqtzh1FCUmAyl2SVjtt0jeIyzMHhiOvZJWc9-sDGCOKfajfBg=s100-p-k-no-mo"
+          }
+        ],
+        "flagContentUri": "https://www.google.com/local/imagery/report/?cb_client=maps_api_places.places_api&image_key=!1e10!2sAF1QipPdDzFIwVPuTW6ffIdrf8O9ybozN7IiJKMX1qXP&hl=en-US",
+        "googleMapsUri": "https://www.google.com/maps/place//data=!3m4!1e2!3m2!1sAF1QipPdDzFIwVPuTW6ffIdrf8O9ybozN7IiJKMX1qXP!2e10!4m2!3m1!1s0x89b62d22c8e472a9:0x64ad260b1683b62f"
+      },
+      {
+        "name": "places/ChIJqXLkyCIttokRL7aDFgsmrWQ/photos/AWn5SU5yFpGGuV_bzAbwnSit-tvgprwZQdD2CoOeej0R2ofRpDSaCtoB5CflEb2I3Xl226UFX_SCwtr3ZSOOvnqUSIDn6jBErTNiZh4bql1ttCJc92rrl14tGiTa-xDZxnfNfRMS8JCzltK0gYuCYtWjTsJylW5r9yusHwo8W94KvECwwfZgZudt3V7fNHoWaYrz2CVXpsCaGmyZDzgF9CRUB766Nulesud6qtiifWCbRftP2JtU8yzPYzaecdDCto2yCjXCryVetRX3JrhMDxfI6bl3KiOwGS2zSPtsuujWB1o4Lw",
+        "widthPx": 2364,
+        "heightPx": 1773,
+        "authorAttributions": [
+          {
+            "displayName": "New Funding Resources - Hard Money Lenders",
+            "uri": "https://maps.google.com/maps/contrib/114559082863476583402",
+            "photoUri": "https://lh3.googleusercontent.com/a-/ALV-UjUqtzh1FCUmAyl2SVjtt0jeIyzMHhiOvZJWc9-sDGCOKfajfBg=s100-p-k-no-mo"
+          }
+        ],
+        "flagContentUri": "https://www.google.com/local/imagery/report/?cb_client=maps_api_places.places_api&image_key=!1e10!2sAF1QipPrrsqxa5YKmhkxzQRBSuBar8XTw411n50nN1-C&hl=en-US",
+        "googleMapsUri": "https://www.google.com/maps/place//data=!3m4!1e2!3m2!1sAF1QipPrrsqxa5YKmhkxzQRBSuBar8XTw411n50nN1-C!2e10!4m2!3m1!1s0x89b62d22c8e472a9:0x64ad260b1683b62f"
+      },
+      {
+        "name": "places/ChIJqXLkyCIttokRL7aDFgsmrWQ/photos/AWn5SU7GQ-g-HWq-54lZW6bWIKDUtTcxGICAMxcUf3K_FhrSFToQqJGZRNYNREiv7s5OJZRRE6ptJaB_xUIgkuxSsp0EWgMw9vJ9APnMmlg6apGyx8iwuD1Df6oj7rNK5u8YPPEsfF5QSmDUdS_J9_mbyoBLxYzSeGbCkr0pAjOUknK5cTIHIrV8NFoK9yL2wB3XLTMQMxfZClYUgEFe_4BrJMfC-XCCS2lgEfdmGzLusyAcQsu1zIgJ25LoZVH4xw3yCo__Z0_saSNOJ2JhqygfWd2E8Vn-efewngkl-yoe090Pxg",
+        "widthPx": 1500,
+        "heightPx": 1030,
+        "authorAttributions": [
+          {
+            "displayName": "New Funding Resources - Hard Money Lenders",
+            "uri": "https://maps.google.com/maps/contrib/114559082863476583402",
+            "photoUri": "https://lh3.googleusercontent.com/a-/ALV-UjUqtzh1FCUmAyl2SVjtt0jeIyzMHhiOvZJWc9-sDGCOKfajfBg=s100-p-k-no-mo"
+          }
+        ],
+        "flagContentUri": "https://www.google.com/local/imagery/report/?cb_client=maps_api_places.places_api&image_key=!1e10!2sAF1QipPkURIw9zx33-wybIPwU0STK8_YKQVNgSQW34qD&hl=en-US",
+        "googleMapsUri": "https://www.google.com/maps/place//data=!3m4!1e2!3m2!1sAF1QipPkURIw9zx33-wybIPwU0STK8_YKQVNgSQW34qD!2e10!4m2!3m1!1s0x89b62d22c8e472a9:0x64ad260b1683b62f"
+      },
+      {
+        "name": "places/ChIJqXLkyCIttokRL7aDFgsmrWQ/photos/AWn5SU6X0QvzbZHQs-JCVEU9SNitSd6Wcf571dBMbZWE2QRE6a-v6HaFsZEfJyXiU0RWbS8_Yqv4G7y4DPv4KvRear43NaasnYOnc6nkk69dmZp3CXkglvVmZ4pIxXH5_4ea9QpA_Y4a9AW4slUFY8SreK-cUHQDE2Ali1jLyNHnV-yahFchSyOqCMlgA9KEjkgIdyqXi5BrCCeKKl-eBKRe1tAQGM6qVzGlXLz93zi0zILKvnS4s4XtwAdHdJUrab48h8ZUAQso8RhUX48UAoX6x64LShXw5L3-aNrb4ym43bW4Pg",
+        "widthPx": 1500,
+        "heightPx": 1000,
+        "authorAttributions": [
+          {
+            "displayName": "New Funding Resources - Hard Money Lenders",
+            "uri": "https://maps.google.com/maps/contrib/114559082863476583402",
+            "photoUri": "https://lh3.googleusercontent.com/a-/ALV-UjUqtzh1FCUmAyl2SVjtt0jeIyzMHhiOvZJWc9-sDGCOKfajfBg=s100-p-k-no-mo"
+          }
+        ],
+        "flagContentUri": "https://www.google.com/local/imagery/report/?cb_client=maps_api_places.places_api&image_key=!1e10!2sAF1QipNiZbJOeK3rYjAb7P9XOkqAPD9k0BOo2c_8vbz1&hl=en-US",
+        "googleMapsUri": "https://www.google.com/maps/place//data=!3m4!1e2!3m2!1sAF1QipNiZbJOeK3rYjAb7P9XOkqAPD9k0BOo2c_8vbz1!2e10!4m2!3m1!1s0x89b62d22c8e472a9:0x64ad260b1683b62f"
+      },
+      {
+        "name": "places/ChIJqXLkyCIttokRL7aDFgsmrWQ/photos/AWn5SU4WVDyfawaZdB9QdNAU0afeu-L2_BoRKhxSBOSMf2V1oy3WGHLlgalXRhLfaD8UIiVC2eVUGLszNJ8dsWjmIdrafKb7BC-FiehIbzyzmSl2ZBkbwo5OcURD1DnTfON1O9Oof043SrWvz-sSsQV2ztCltD8n8RrmGw8SEXymcoyRFhQaParGWRwZSXbflNrPm_MKblgpUpwR8UUSIdsywYft37paf4wURBpEcp4wWfLzIxaHHFvfnnw442xIfoklE_aEEHSIjBrI8k8WaoXJUvKTUNEltBdQGA5PGoM_0iRRww",
+        "widthPx": 1704,
+        "heightPx": 2175,
+        "authorAttributions": [
+          {
+            "displayName": "New Funding Resources - Hard Money Lenders",
+            "uri": "https://maps.google.com/maps/contrib/114559082863476583402",
+            "photoUri": "https://lh3.googleusercontent.com/a-/ALV-UjUqtzh1FCUmAyl2SVjtt0jeIyzMHhiOvZJWc9-sDGCOKfajfBg=s100-p-k-no-mo"
+          }
+        ],
+        "flagContentUri": "https://www.google.com/local/imagery/report/?cb_client=maps_api_places.places_api&image_key=!1e10!2sAF1QipOzXv6xa86PG1zdDKRM3RlNrw1ojn3-Jw3P80Ox&hl=en-US",
+        "googleMapsUri": "https://www.google.com/maps/place//data=!3m4!1e2!3m2!1sAF1QipOzXv6xa86PG1zdDKRM3RlNrw1ojn3-Jw3P80Ox!2e10!4m2!3m1!1s0x89b62d22c8e472a9:0x64ad260b1683b62f"
+      },
+      {
+        "name": "places/ChIJqXLkyCIttokRL7aDFgsmrWQ/photos/AWn5SU6C2JjBQIYRhjs2o8myKR1L2NOOGkT7Ichq43r6u9_sPW1g4x1cXp4AazCubbd-FhA_8LX3c1BSz1E328bOu2uch1EqW1O00-vAZUoP3mE0P9uEK01qsv2x-XviqgC0P2Zp3hFCdaXF_3gR6ZhbROUD2Zicak1M5G7DNC27aH8YHWhkQVot0c1JswE95j1VUA5-Iw7VkN2LJcP0j8TgjIxdhaetxvJtVANWr_NnOJ0zp1YsIWHCFp1IGVak3Q-V6aBD9uVBlxBxWy6iLRHF-3jFuI0wCtfpoJwX-hmENZXlQw",
+        "widthPx": 1704,
+        "heightPx": 959,
+        "authorAttributions": [
+          {
+            "displayName": "New Funding Resources - Hard Money Lenders",
+            "uri": "https://maps.google.com/maps/contrib/114559082863476583402",
+            "photoUri": "https://lh3.googleusercontent.com/a-/ALV-UjUqtzh1FCUmAyl2SVjtt0jeIyzMHhiOvZJWc9-sDGCOKfajfBg=s100-p-k-no-mo"
+          }
+        ],
+        "flagContentUri": "https://www.google.com/local/imagery/report/?cb_client=maps_api_places.places_api&image_key=!1e10!2sAF1QipNpjLY2A2gngabMdT-yEq8meRuHHjWUWEQaAn25&hl=en-US",
+        "googleMapsUri": "https://www.google.com/maps/place//data=!3m4!1e2!3m2!1sAF1QipNpjLY2A2gngabMdT-yEq8meRuHHjWUWEQaAn25!2e10!4m2!3m1!1s0x89b62d22c8e472a9:0x64ad260b1683b62f"
+      }
+    ],
+    "accessibilityOptions": {
+      "wheelchairAccessibleParking": true,
+      "wheelchairAccessibleEntrance": true
+    },
+    "generativeSummary": {
+      "overview": {
+        "text": "Hard-money and private lender providing funding for residential real estate rehab projects.",
+        "languageCode": "en-US"
+      },
+      "overviewFlagContentUri": "https://www.google.com/local/review/rap/report?postId=CiUweDg5YjYyZDIyYzhlNDcyYTk6MHg2NGFkMjYwYjE2ODNiNjJmMAI&d=17924085&t=12",
+      "disclosureText": {
+        "text": "Summarized with Gemini",
+        "languageCode": "en-US"
+      }
+    },
+    "containingPlaces": [
+      {
+        "name": "places/ChIJBbaGkiIttokRVO741gL0GuQ",
+        "id": "ChIJBbaGkiIttokRVO741gL0GuQ"
+      }
+    ],
+    "pureServiceAreaBusiness": false,
+    "addressDescriptor": {
+      "landmarks": [
+        {
+          "name": "places/ChIJN6yIyCIttokRSgVyBoYoooM",
+          "placeId": "ChIJN6yIyCIttokRSgVyBoYoooM",
+          "displayName": {
+            "text": "First Medical Associates",
+            "languageCode": "en"
+          },
+          "types": [
+            "doctor",
+            "establishment",
+            "health",
+            "point_of_interest"
+          ],
+          "spatialRelationship": "BESIDE",
+          "straightLineDistanceMeters": 1.661191
+        },
+        {
+          "name": "places/ChIJ5ctx5BcttokRgvtl68CUwhM",
+          "placeId": "ChIJ5ctx5BcttokRgvtl68CUwhM",
+          "displayName": {
+            "text": "National Institute of Standards & Technology",
+            "languageCode": "en"
+          },
+          "types": [
+            "establishment",
+            "point_of_interest"
+          ],
+          "straightLineDistanceMeters": 324.7512
+        },
+        {
+          "name": "places/ChIJfdGNviIttokRSc-uoTeimaI",
+          "placeId": "ChIJfdGNviIttokRSc-uoTeimaI",
+          "displayName": {
+            "text": "TD Bank",
+            "languageCode": "en"
+          },
+          "types": [
+            "atm",
+            "bank",
+            "establishment",
+            "finance",
+            "point_of_interest"
+          ],
+          "straightLineDistanceMeters": 72.070786
+        },
+        {
+          "name": "places/ChIJ02dqVxgttokRUy7ONKBg6Ho",
+          "placeId": "ChIJ02dqVxgttokRUy7ONKBg6Ho",
+          "displayName": {
+            "text": "Starbucks",
+            "languageCode": "en"
+          },
+          "types": [
+            "cafe",
+            "establishment",
+            "food",
+            "point_of_interest",
+            "restaurant",
+            "store"
+          ],
+          "straightLineDistanceMeters": 419.75867
+        },
+        {
+          "name": "places/ChIJte_SOLYstokRex3gm54bLqw",
+          "placeId": "ChIJte_SOLYstokRex3gm54bLqw",
+          "displayName": {
+            "text": "MVP Smiles - Pediatric Dentist Gaithersburg",
+            "languageCode": "en"
+          },
+          "types": [
+            "dentist",
+            "doctor",
+            "establishment",
+            "health",
+            "point_of_interest"
+          ],
+          "spatialRelationship": "BESIDE",
+          "straightLineDistanceMeters": 7.626213
+        }
+      ],
+      "areas": [
+        {
+          "name": "places/ChIJW2XSkiIttokRYGEVkOLCetw",
+          "placeId": "ChIJW2XSkiIttokRYGEVkOLCetw",
+          "displayName": {
+            "text": "Quince Tree Executive Center",
+            "languageCode": "en"
+          },
+          "containment": "WITHIN"
+        }
+      ]
+    },
+    "googleMapsLinks": {
+      "directionsUri": "https://www.google.com/maps/dir//''/data=!4m7!4m6!1m1!4e2!1m2!1m1!1s0x89b62d22c8e472a9:0x64ad260b1683b62f!3e0?g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
+      "placeUri": "https://maps.google.com/?cid=7254496403827963439&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
+      "writeAReviewUri": "https://www.google.com/maps/place//data=!4m3!3m2!1s0x89b62d22c8e472a9:0x64ad260b1683b62f!12e1?g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
+      "reviewsUri": "https://www.google.com/maps/place//data=!4m4!3m3!1s0x89b62d22c8e472a9:0x64ad260b1683b62f!9m1!1b1?g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
+      "photosUri": "https://www.google.com/maps/place//data=!4m3!3m2!1s0x89b62d22c8e472a9:0x64ad260b1683b62f!10e5?g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA"
+    },
+    "timeZone": {
+      "id": "America/New_York"
+    },
+    "postalAddress": {
+      "regionCode": "US",
+      "languageCode": "en-US",
+      "postalCode": "20878",
+      "administrativeArea": "Maryland",
+      "locality": "Gaithersburg",
+      "addressLines": [
+        "806 W Diamond Ave #340"
+      ]
+    }
+  },
+  "Categories": [
+    "Mortgage",
+    "Title & Escrow"
+  ],
+  "Services": [
+    "Bridge Loans",
+    "Cash-Out Refinance",
+    "Conventional Loans",
+    "Down Payment Assistance Guidance",
+    "FHA Loans",
+    "First-Time Homebuyer Programs",
+    "Jumbo Loans",
+    "Investment Property",
+    "New Construction",
+    "Portfolio (5+ Units)",
+    "Primary Residence",
+    "Renovation",
+    "USDA Loans",
+    "VA Loans",
+    "Mortgage Lender",
+    "Mortgage Loan Offer",
+    "Float-Down Option",
+    "Commercial",
+    "Commercial Refinance"
+  ],
+  "businessCategories": [
+    {
+      "name": "Mortgage",
+      "id": {
+        "$oid": "6913229561f89438cfea7e6e"
+      }
+    }
+  ],
+  "businessTypes": [
+    {
+      "name": "Investor",
+      "id": {
+        "$oid": "6912e4d561f89438cfea7e64"
+      }
+    }
+  ],
+ 
+  "socialLink": {
+    "facebook": "https://www.facebook.com/newfundingresourcesllc/",
+    "insta": "",
+    "linkedin": "https://www.linkedin.com/company/new-funding-resources"
+  },
+  "includeStatus": "approved",
+  "specialityServices": [
+    {
+      "name": "Bridge Loans",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd4fef"
+      }
+    },
+    {
+      "name": "Cash-Out Refinance",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd4ff0"
+      }
+    },
+    {
+      "name": "Conventional Loans",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd4ff1"
+      }
+    },
+    {
+      "name": "Down Payment Assistance Guidance",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd4ff2"
+      }
+    },
+    {
+      "name": "FHA Loans",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd4ff3"
+      }
+    },
+    {
+      "name": "First-Time Homebuyer Programs",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd4ff4"
+      }
+    },
+    {
+      "name": "Jumbo Loans",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd4ff9"
+      }
+    },
+    {
+      "name": "Investment Property",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd504c"
+      }
+    },
+    {
+      "name": "New Construction",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd4ffd"
+      }
+    },
+    {
+      "name": "Portfolio (5+ Units)",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd4ffe"
+      }
+    },
+    {
+      "name": "Primary Residence",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd4fff"
+      }
+    },
+    {
+      "name": "Renovation",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd5000"
+      }
+    },
+    {
+      "name": "USDA Loans",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd5003"
+      }
+    },
+    {
+      "name": "VA Loans",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd5004"
+      }
+    },
+    {
+      "name": "Mortgage Lender",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd4fc5"
+      }
+    },
+    {
+      "name": "Mortgage Loan Offer",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd4fc8"
+      }
+    },
+    {
+      "name": "Float-Down Option",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd4ff5"
+      }
+    },
+    {
+      "name": "Commercial",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd5002"
+      }
+    },
+    {
+      "name": "Commercial Refinance",
+      "id": {
+        "$oid": "69088a6fa5b2619fdacd4fe1"
+      }
+    }
+  ],
+  "__v": 1,
+  "category_services": [
+    {
+      "categoryId": {
+        "$oid": "6913229561f89438cfea7e6e"
+      },
+      "categoryName": "Mortgage",
+      "services": [
+        {
+          "serviceId": {
+            "$oid": "69088a6fa5b2619fdacd4fc5"
+          },
+          "serviceName": "Mortgage Lender"
+        }
+      ]
+    }
+  ],
+  "differentiators": [],
+  "languageSpoken": [],
+  "onboardingStep": 0,
+  "serviceLocations": [],
+  "specialDiscountFor": [],
+  "isVerified": false
+}
