@@ -1347,9 +1347,36 @@ const uploadInputwrap = document.querySelector(".upload-wrapper");
 const galleryWrapper = document.getElementById("galleryWrapper");
 const customForm = document.getElementById("custom-image-form");
 
-canvas.on("object:scaling", function() {
+canvas.on("object:scaling", function(opt) {
+  const target = opt?.target;
+
+  if (target === appState.uploadedImage) {
+    const baseScale = getBaseScale();
+
+    if (baseScale > 0 && Number.isFinite(baseScale)) {
+      const requestedZoom = target.scaleX / baseScale;
+      const originalScaleX = Number(opt?.transform?.original?.scaleX);
+      const maxAllowedZoom = Number.isFinite(originalScaleX) && originalScaleX > 0
+        ? originalScaleX / baseScale
+        : appState.zoom;
+      const currentDpi = Number((appState.dpi || 0).toFixed(2));
+
+      if (currentDpi < 35 && requestedZoom > maxAllowedZoom) {
+        const clampedScale = baseScale * maxAllowedZoom;
+        target.scaleX = clampedScale;
+        target.scaleY = clampedScale;
+      }
+
+      appState.scaleFactor = target.scaleX;
+    }
+  }
+
   updateMovementConstraints();
   updatePositionInfo();
+
+  if (target === appState.uploadedImage) {
+    syncZoomSlider();
+  }
 });
 
 canvas.on("object:rotating", function() {

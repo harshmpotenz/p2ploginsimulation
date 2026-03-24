@@ -114,12 +114,12 @@ function loadHeic2Any() {
     script.onload = () => {
       _heic2anyLoaded = true;
       _heic2anyLoading = false;
-      console.log('✅ heic2any library loaded');
+      console.log('heic2any library loaded');
       resolve();
     };
     script.onerror = (err) => {
       _heic2anyLoading = false;
-      console.error('❌ Failed to load heic2any library:', err);
+      console.error('Failed to load heic2any library:', err);
       reject(new Error('Failed to load heic2any library'));
     };
     document.head.appendChild(script);
@@ -148,7 +148,7 @@ function isHeicFile(file) {
  * Returns { blobUrl, blob, dataUrl } for use with Image, fabric, etc.
  */
 async function convertHeicToJpeg(file) {
-  console.log('🔄 Converting HEIC image to JPEG...');
+  console.log('Converting HEIC image to JPEG...');
   await loadHeic2Any();
 
   if (!window.heic2any) {
@@ -173,7 +173,7 @@ async function convertHeicToJpeg(file) {
     reader.readAsDataURL(resultBlob);
   });
 
-  console.log('✅ HEIC converted to JPEG successfully');
+  console.log('HEIC converted to JPEG successfully');
   return { blobUrl, blob: resultBlob, dataUrl };
 }
 
@@ -465,12 +465,12 @@ function initPrintOnSideToggle() {
   setPrintOnSideEnabled(storedValue !== "false", { persist: false });
 }
 
-function createFrontFaceSnapshotCanvas(targetWidth, targetHeight) {
+function createFrontFaceSnapshotCanvas(targetWidth, targetHeight, sourceOverride = null) {
   const bounds = getCanvasFrontFaceBounds();
   const imageObject = appState.uploadedImage;
-  const sourceImage = typeof imageObject?.getElement === "function"
+  const sourceImage = sourceOverride || (typeof imageObject?.getElement === "function"
     ? imageObject.getElement()
-    : (imageObject?._element || imageObject?._originalElement);
+    : (imageObject?._element || imageObject?._originalElement));
 
   if (!bounds || !imageObject || !sourceImage) {
     return null;
@@ -536,6 +536,112 @@ function createFrontFaceSnapshotCanvas(targetWidth, targetHeight) {
   return faceCanvas;
 }
 
+async function createFrontFaceSnapshotFromRenderedCanvas(bounds, targetWidth, targetHeight, multiplier = 2) {
+  if (!bounds) {
+    return null;
+  }
+
+  try {
+    const renderedDataUrl = withNeutralCanvasPreviewViewport(() => canvas.toDataURL({
+      format: "jpeg",
+      multiplier
+    }));
+    const renderedImage = await loadImageFromAnySource(renderedDataUrl);
+    const snapshotCanvas = createSizedCanvas(targetWidth, targetHeight);
+    const snapshotCtx = snapshotCanvas.getContext("2d");
+
+    if (!snapshotCtx) {
+      return null;
+    }
+
+    const sourceLeft = Math.max(0, Math.round(bounds.left * multiplier));
+    const sourceTop = Math.max(0, Math.round(bounds.top * multiplier));
+    const sourceWidth = Math.max(1, Math.round(bounds.width * multiplier));
+    const sourceHeight = Math.max(1, Math.round(bounds.height * multiplier));
+
+    snapshotCtx.fillStyle = "#ffffff";
+    snapshotCtx.fillRect(0, 0, snapshotCanvas.width, snapshotCanvas.height);
+    snapshotCtx.imageSmoothingEnabled = true;
+    snapshotCtx.drawImage(
+      renderedImage,
+      sourceLeft,
+      sourceTop,
+      sourceWidth,
+      sourceHeight,
+      0,
+      0,
+      snapshotCanvas.width,
+      snapshotCanvas.height
+    );
+
+    return {
+      canvas: snapshotCanvas,
+      dataUrl: snapshotCanvas.toDataURL("image/jpeg")
+    };
+  } catch (error) {
+    console.warn("Front-face rendered-canvas fallback failed:", error);
+    return null;
+  }
+}
+
+async function createFrontFaceSnapshotUploadData(multiplier = 2) {
+  const bounds = getCanvasFrontFaceBounds();
+  if (!bounds) {
+    return null;
+  }
+
+  const targetWidth = Math.max(1, Math.round(bounds.width * multiplier));
+  const targetHeight = Math.max(1, Math.round(bounds.height * multiplier));
+
+  const trySerializeSnapshot = (snapshotCanvas) => {
+    if (!snapshotCanvas) {
+      return null;
+    }
+
+    try {
+      return {
+        canvas: snapshotCanvas,
+        dataUrl: snapshotCanvas.toDataURL("image/jpeg")
+      };
+    } catch (error) {
+      console.warn("Front-face snapshot needs a safe image source:", error);
+      return null;
+    }
+  };
+
+  if (appState.uploadedImage) {
+    const directSnapshot = trySerializeSnapshot(
+      createFrontFaceSnapshotCanvas(targetWidth, targetHeight)
+    );
+    if (directSnapshot) {
+      return directSnapshot;
+    }
+
+    const imageObject = appState.uploadedImage;
+    const sourceImage = typeof imageObject?.getElement === "function"
+      ? imageObject.getElement()
+      : (imageObject?._element || imageObject?._originalElement);
+    const sourceUrl = sourceImage?.currentSrc || sourceImage?.src;
+
+    if (sourceUrl) {
+      try {
+        const safeSourceDataUrl = await urlToBase64(sourceUrl);
+        const safeSourceImage = await loadImageFromAnySource(safeSourceDataUrl);
+        const safeSnapshot = trySerializeSnapshot(
+          createFrontFaceSnapshotCanvas(targetWidth, targetHeight, safeSourceImage)
+        );
+
+        if (safeSnapshot) {
+          return safeSnapshot;
+        }
+      } catch (error) {
+        console.warn("Front-face safe-source fallback failed:", error);
+      }
+    }
+  }
+
+  return createFrontFaceSnapshotFromRenderedCanvas(bounds, targetWidth, targetHeight, multiplier);
+}
 function loadImageFromAnySource(source) {
   return new Promise((resolve, reject) => {
     if (source instanceof HTMLImageElement) {
@@ -1687,9 +1793,36 @@ const uploadInputwrap = document.querySelector(".upload-wrapper");
 const galleryWrapper = document.getElementById("galleryWrapper");
 const customForm = document.getElementById("custom-image-form");
 
-canvas.on("object:scaling", function () {
+canvas.on("object:scaling", function(opt) {
+  const target = opt?.target;
+
+  if (target === appState.uploadedImage) {
+    const baseScale = getBaseScale();
+
+    if (baseScale > 0 && Number.isFinite(baseScale)) {
+      const requestedZoom = target.scaleX / baseScale;
+      const originalScaleX = Number(opt?.transform?.original?.scaleX);
+      const maxAllowedZoom = Number.isFinite(originalScaleX) && originalScaleX > 0
+        ? originalScaleX / baseScale
+        : appState.zoom;
+      const currentDpi = Number((appState.dpi || 0).toFixed(2));
+
+      if (currentDpi < 35 && requestedZoom > maxAllowedZoom) {
+        const clampedScale = baseScale * maxAllowedZoom;
+        target.scaleX = clampedScale;
+        target.scaleY = clampedScale;
+      }
+
+      appState.scaleFactor = target.scaleX;
+    }
+  }
+
   updateMovementConstraints();
   updatePositionInfo();
+
+  if (target === appState.uploadedImage) {
+    syncZoomSlider();
+  }
 });
 
 canvas.on("object:rotating", function () {
@@ -1789,7 +1922,7 @@ function updatePositionInfo() {
   document.getElementById("img-width").textContent = `${pos.width}`;
   document.getElementById("img-height").textContent = `${pos.height}`;
   document.getElementById("img-scale").textContent = pos.scale;
-  document.getElementById("img-angle").textContent = `${pos.angle}°`;
+  document.getElementById("img-angle").textContent = `${pos.angle}\u00B0`;
 
   const imgwidth = pos.width || 0;
   const imgheight = pos.height || 0;
@@ -2716,7 +2849,7 @@ function updateFrameSize(selectedOption) {
 
   const frmsize = selectedOption.getAttribute("data-frmsize");
   const [width, height] = size.split("x").map(Number);
-  const [frmwidth, frmheight] = frmsize.replace(/″/g, '').split('×').map(s => Number(s.trim()));
+  const [frmwidth, frmheight] = frmsize.replace(/\u2033/g, '').split('\u00D7').map(s => Number(s.trim()));
 
   // Calculate extended dimensions
   const extendwidth = frmwidth + 3;
@@ -2982,7 +3115,7 @@ function uploadImageToAPI(file) {
   })
     .then(res => res.json())
     .then(data => {
-      // ✅ Store cloudfrontLink in localStorage
+      // Store cloudfrontLink in localStorage
       if (data?.cloudfrontLink) {
         localStorage.setItem("pdpUploadedImage", data.cloudfrontLink);
       } else {
@@ -3064,7 +3197,7 @@ uploadInput.addEventListener("change", async function (e) {
 
       if (loadingEl) loadingEl.classList.remove("active");
     } catch (err) {
-      console.error('❌ HEIC conversion failed:', err);
+      console.error('HEIC conversion failed:', err);
       alert('Failed to convert HEIC image. Please try a JPEG or PNG file instead.');
       const loadingEl = document.getElementById("canvasLoading");
       if (loadingEl) loadingEl.classList.remove("active");
@@ -3074,7 +3207,7 @@ uploadInput.addEventListener("change", async function (e) {
   }
 
   /* ========================== */
-  // 🔹 Send image to API (use the converted file if HEIC was converted)
+  // Send image to API (use the converted file if HEIC was converted)
   uploadImageToAPI(processFile);
 
   // Function to handle the loaded image data URL
@@ -3754,15 +3887,15 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     const disableFrameSizes = [
-      '30″×40″',
-      '20″×60″',
-      '32″×48″',
-      '40″×60″',
-      '20″×40″',
-      '24″×48″',
-      '32″×32″',
-      '36″×36″',
-      '37″×37″'
+      '30\u2033\u00D740\u2033',
+      '20\u2033\u00D760\u2033',
+      '32\u2033\u00D748\u2033',
+      '40\u2033\u00D760\u2033',
+      '20\u2033\u00D740\u2033',
+      '24\u2033\u00D748\u2033',
+      '32\u2033\u00D732\u2033',
+      '36\u2033\u00D736\u2033',
+      '37\u2033\u00D737\u2033'
     ];
 
 
@@ -4168,7 +4301,7 @@ async function sendMainImageToAPI(e) {
 async function urlToBase64(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "https://prompt2prints.com";
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       const canvasEl = document.createElement("canvas");
       canvasEl.width = img.width;
@@ -4219,7 +4352,7 @@ async function reloadImageAsBase64(img) {
     fabric.Image.fromURL(base64, (newImg) => {
       newImg.set({ left, top, scaleX, scaleY, angle, originX, originY });
 
-      // 🔴 REMOVE CENTER GUIDE LINES
+      // REMOVE CENTER GUIDE LINES
       canvas.getObjects('line').forEach((obj) => {
         if (obj.stroke === 'red' && obj.opacity === 0.5) {
           canvas.remove(obj);
@@ -4501,22 +4634,24 @@ async function exportFullDivAsImage(customerId, sessionId) {
   canvas.renderAll();
 
   try {
-    const images = canvas.getObjects("image");
-    await Promise.all(images.map(img => reloadImageAsBase64(img)));
+    const snapshot = await createFrontFaceSnapshotUploadData(2);
+    if (!snapshot?.canvas || !snapshot.dataUrl) {
+      throw new Error("Unable to create front-face snapshot");
+    }
 
+    const blob = await new Promise((resolve, reject) => {
+      snapshot.canvas.toBlob((value) => {
+        if (value) {
+          resolve(value);
+          return;
+        }
 
-    // 1️⃣ Export canvas to data URL
-    const dataURL = withNeutralCanvasPreviewViewport(() => canvas.toDataURL({
-      format: "jpeg",
-      multiplier: 2,
-    }));
-    // const paddedDataURL = await addPaddingToDataURL(dataURL, 0);
-
-    const res = await fetch(dataURL);
-    const blob = await res.blob();
+        reject(new Error("Failed to create front-face snapshot blob"));
+      }, "image/jpeg", 0.92);
+    });
 
     const formData = new FormData();
-    formData.append("file", blob, "full-div-image.jpeg");
+    formData.append("file", blob, "front-face-image.jpeg");
     formData.append("customerId", customerId);
     formData.append("sessionId", sessionId);
     formData.append("thumbnailWidth", "200");
@@ -4537,7 +4672,6 @@ async function exportFullDivAsImage(customerId, sessionId) {
     const hiddenInput1 = document.getElementById("preview-thumb-image-data");
     if (hiddenInput1 && data.thumbnail?.cloudfrontUrl) hiddenInput1.value = data.thumbnail.cloudfrontUrl;
 
-    // Optional: display padded image in .full-content
     let fullContentDiv = document.querySelector(".full-content");
     if (!fullContentDiv) {
       fullContentDiv = document.createElement("div");
@@ -4546,12 +4680,11 @@ async function exportFullDivAsImage(customerId, sessionId) {
     }
     fullContentDiv.innerHTML = "";
     const imgElement = document.createElement("img");
-    imgElement.src = dataURL;
+    imgElement.src = snapshot.dataUrl;
     fullContentDiv.appendChild(imgElement);
-    removeSelectedElements([1, 2, 3]);
 
   } catch (err) {
-    console.error("Error exporting full div:", err);
+    console.error("Error exporting front face:", err);
   } finally {
     canvas.getObjects().forEach(obj => obj.set({
       selectable: true,
@@ -4560,7 +4693,6 @@ async function exportFullDivAsImage(customerId, sessionId) {
     canvas.renderAll();
   }
 }
-
 // Helper function: add padding to a dataURL
 function addPaddingToDataURL(dataURL, padding) {
   return new Promise((resolve) => {
@@ -4595,7 +4727,7 @@ function captureImageTransform(image) {
     originX: image.originX || "left",
     originY: image.originY || "top",
 
-    // ✅ visible size in canvas px
+    // visible size in canvas px
     visibleWidth: image.getScaledWidth(),
     visibleHeight: image.getScaledHeight()
   };
@@ -4647,7 +4779,7 @@ async function upscaleAndFixDPI({
   savepopuptext.textContent = "Boosting resolution for maximum clarity";
   if (savepopupicon) savepopupicon.style.display = "flex";
 
-  // 🔹 SAVE CURRENT IMAGE TRANSFORM
+  // SAVE CURRENT IMAGE TRANSFORM
   const previousTransform = captureImageTransform(appState.uploadedImage);
 
   const imagefinalWidth = (appState.imageWidth * 300) / appState.dpi;
@@ -4707,7 +4839,7 @@ async function upscaleAndFixDPI({
 
     fabric.Image.fromURL(enhancedUrl, async (img) => {
 
-      // 🔹 CLEAR CANVAS SAFELY
+      // CLEAR CANVAS SAFELY
       canvas.clear();
       canvas.setBackgroundColor("#ffffff", canvas.renderAll.bind(canvas));
 
@@ -4717,7 +4849,7 @@ async function upscaleAndFixDPI({
 
       canvas.add(appState.uploadedImage);
 
-      // 🔹 RESTORE EXACT SAME POSITION
+      // RESTORE EXACT SAME POSITION
       if (previousTransform) {
         applyImageTransform(appState.uploadedImage, previousTransform);
       } else {
@@ -4739,13 +4871,13 @@ async function upscaleAndFixDPI({
       await updatePositionInfo();
       syncZoomSlider();
 
-      // 🔹 KEEP WRAP TYPE
+      // KEEP WRAP TYPE
       // const value = sessionStorage.getItem("selectedWrap");
       // if (value === "black") coverFrame("black");
       // if (value === "white") coverFrame("white");
       // if (value === "fit") fitImageToFrame(true);
 
-      // 🔹 DPI UI
+      // DPI UI
       //  const dpiElement = document.querySelector(".dpi-num");
       // const iconElement = document.querySelector(".dpi-state-icon");
       const boostBtn = document.querySelector(".boost-img-btn");
@@ -4866,7 +4998,7 @@ function base64ToFile(base64, filename = "image.jpeg") {
 // Boost Button event
 document.querySelector(".boost-img-btn").addEventListener("click", (e) => {
 
-  // ✅ Continue normal flow
+  // Continue normal flow
   const userId = window.shopifyCustomerId || "guest";
   const sessionId = getLocalStorage1Day("sessionId") || "none";
 
@@ -5174,21 +5306,21 @@ document.addEventListener("DOMContentLoaded", function () {
   const highlightedOptions = [];
 
   const relatedOptionsMap = {
-    '9″×12″': ["18″×26″", "20″×28″", "28″×40″", "40″×55″"],
-    '12″×16″': ["18″×26″", "20″×28″", "28″×40″", "40″×55″"],
-    '18″×24″': ["18″×26″", "20″×28″", "28″×40″", "40″×55″"],
-    '24″×32″': ["18″×26″", "20″×28″", "28″×40″", "40″×55″"],
-    '30″×40″': ["18″×26″", "20″×28″", "28″×40″", "40″×55″"],
-    '8″×12″': ["26″×40″"],
-    '12″×18″': ["26″×40″"],
-    '16″×24″': ["26″×40″"],
-    '20″×30″': ["26″×40″"],
-    '24″×36″': ["26″×40″"],
-    '32″×48″': ["26″×40″"],
-    '40″×60″': ["26″×40″"],
-    '8″×10″': ["11″×14″", "20″×24″"],
-    '16″×20″': ["11″×14″", "20″×24″"],
-    '24″×30″': ["11″×14″", "20″×24″"],
+    '9\u2033\u00D712\u2033': ["18\u2033\u00D726\u2033", "20\u2033\u00D728\u2033", "28\u2033\u00D740\u2033", "40\u2033\u00D755\u2033"],
+    '12\u2033\u00D716\u2033': ["18\u2033\u00D726\u2033", "20\u2033\u00D728\u2033", "28\u2033\u00D740\u2033", "40\u2033\u00D755\u2033"],
+    '18\u2033\u00D724\u2033': ["18\u2033\u00D726\u2033", "20\u2033\u00D728\u2033", "28\u2033\u00D740\u2033", "40\u2033\u00D755\u2033"],
+    '24\u2033\u00D732\u2033': ["18\u2033\u00D726\u2033", "20\u2033\u00D728\u2033", "28\u2033\u00D740\u2033", "40\u2033\u00D755\u2033"],
+    '30\u2033\u00D740\u2033': ["18\u2033\u00D726\u2033", "20\u2033\u00D728\u2033", "28\u2033\u00D740\u2033", "40\u2033\u00D755\u2033"],
+    '8\u2033\u00D712\u2033': ["26\u2033\u00D740\u2033"],
+    '12\u2033\u00D718\u2033': ["26\u2033\u00D740\u2033"],
+    '16\u2033\u00D724\u2033': ["26\u2033\u00D740\u2033"],
+    '20\u2033\u00D730\u2033': ["26\u2033\u00D740\u2033"],
+    '24\u2033\u00D736\u2033': ["26\u2033\u00D740\u2033"],
+    '32\u2033\u00D748\u2033': ["26\u2033\u00D740\u2033"],
+    '40\u2033\u00D760\u2033': ["26\u2033\u00D740\u2033"],
+    '8\u2033\u00D710\u2033': ["11\u2033\u00D714\u2033", "20\u2033\u00D724\u2033"],
+    '16\u2033\u00D720\u2033': ["11\u2033\u00D714\u2033", "20\u2033\u00D724\u2033"],
+    '24\u2033\u00D730\u2033': ["11\u2033\u00D714\u2033", "20\u2033\u00D724\u2033"],
   };
 
   function highlightMatchingOption() {
@@ -5196,7 +5328,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const orientationRadio = document.querySelector('input[name="orientation"]:checked');
     const orientation = orientationRadio ? orientationRadio.value : "portrait";
 
-    // ⛔ STOP if orientation is NOT portrait
+    // STOP if orientation is NOT portrait
     if (orientation !== "portrait") {
       return true;  // stop interval
     }
@@ -5248,8 +5380,8 @@ document.addEventListener("DOMContentLoaded", function () {
     let found = false;
 
     options.forEach((input) => {
-      const normalizedInput = input.value.replace(/[“”"]/g, '"').replace(/[×x]/g, "x");
-      const normalizedTarget = targetValue.replace(/[“”"]/g, '"').replace(/[×x]/g, "x");
+      const normalizedInput = input.value.replace(/[\u201C\u201D"]/g, '"').replace(/[\u00D7x]/g, "x");
+      const normalizedTarget = targetValue.replace(/[\u201C\u201D"]/g, '"').replace(/[\u00D7x]/g, "x");
       if (normalizedInput === normalizedTarget) {
         const label = input.closest("label.frame-size-btn").querySelector("span");
         label.style.border = "1px solid orange";
@@ -5279,7 +5411,7 @@ const expandBtn = document.getElementById('expandBtn');
 let img = new Image();
 img.crossOrigin = "anonymous";
 
-// 🧮 Calculate expanded size
+// Calculate expanded size
 function calculateExpandedSize({
   imageWidthPx,
   imageHeightPx,
@@ -5313,7 +5445,7 @@ expandBtn.addEventListener('click', async () => {
   const canvasWidthIn = appState.extendwidth;
   const canvasHeightIn = appState.extendheight;
 
-  // ✅ Get user and session IDs
+  // Get user and session IDs
   const userId = window.shopifyCustomerId || "guest";
   const sessionId = getLocalStorage1Day("sessionId") || "none";
 
@@ -5338,7 +5470,7 @@ expandBtn.addEventListener('click', async () => {
   };
   reader.readAsDataURL(fileInput1.files[0]);
 
-  // 🧩 Process & Upload
+  // Process & Upload
   async function processImage(size) {
     const { finalWidthPx, finalHeightPx } = size;
 
@@ -5358,7 +5490,7 @@ expandBtn.addEventListener('click', async () => {
     const blob = await new Promise(resolve => canvasnew.toBlob(resolve, 'image/jpeg'));
     const file = new File([blob], "expanded-image.jpeg", { type: "image/jpeg" });
 
-    // 🔹 Prepare FormData
+    // Prepare FormData
     const formData = new FormData();
     formData.append("customerId", userId);
     formData.append("sessionId", sessionId);
@@ -5402,7 +5534,7 @@ expandBtn.addEventListener('click', async () => {
       // Optional: also update attribute for Shopify forms
       imageUpscale.setAttribute("value", imageUpscale.value);
       imageUpscaletag.setAttribute("value", imageUpscaletag.value);
-      // 🖼️ Auto-download after successful upload
+      // Auto-download after successful upload
       const base64 = canvasnew.toDataURL('image/jpeg');
       const link = document.createElement('a');
       link.download = 'expanded-image.jpeg';
@@ -5410,7 +5542,7 @@ expandBtn.addEventListener('click', async () => {
       link.click();
 
     } catch (err) {
-      console.error("❌ Upload error:", err);
+      console.error("Upload error:", err);
       alert("Upload failed. Please try again.");
     }
   }
@@ -5436,7 +5568,7 @@ uploadInput.addEventListener("change", async (e) => {
         appState.uploadedImageForBlackEdge = img1.src;
       };
     } catch (err) {
-      console.error('❌ HEIC conversion failed for black edge:', err);
+      console.error('HEIC conversion failed for black edge:', err);
     }
   } else {
     const reader = new FileReader();
@@ -5753,7 +5885,7 @@ async function generateCanvasWithBlackEdge() {
 
       return data;
     } catch (error) {
-      console.error("❌ Thumbnail API upload failed:", error);
+      console.error("Thumbnail API upload failed:", error);
       throw error;
     }
   };
@@ -5887,7 +6019,7 @@ async function generateCanvasWithBlackEdge() {
               if (hiddenInput) {
                 hiddenInput.value = cloudfrontLink;
               } else {
-                console.warn("❌ Hidden input with id 'final-image-data' not found");
+                console.warn("Hidden input with id 'final-image-data' not found");
               }
 
               const cvswElement = parseFloat(document.getElementById("cvs-w")?.textContent) || 0;
@@ -5923,13 +6055,13 @@ async function generateCanvasWithBlackEdge() {
               // Also store in appState for easy access
               appState.generatedImageUrl = cloudfrontLink;
             } else {
-              console.warn("❌ No cloudfrontLink in main API response");
+              console.warn("No cloudfrontLink in main API response");
             }
 
             try {
               thumbnailData = await uploadToThumbnailAPI(cloudfrontLink, userId, sessionId);
             } catch (thumbnailError) {
-              console.error("❌ Thumbnail API upload failed, but continuing:", thumbnailError);
+              console.error("Thumbnail API upload failed, but continuing:", thumbnailError);
               // Don't reject here, as main upload was successful
             }
 
@@ -5941,7 +6073,7 @@ async function generateCanvasWithBlackEdge() {
             });
 
           } catch (apiError) {
-            console.error("❌ API upload failed:", apiError);
+            console.error("API upload failed:", apiError);
             reject(apiError);
           }
         }, 'image/jpeg');
@@ -6509,7 +6641,7 @@ async function generateCanvasWithWhiteEdge() {
 
       return data;
     } catch (error) {
-      console.error("❌ Thumbnail API upload failed:", error);
+      console.error("Thumbnail API upload failed:", error);
       throw error;
     }
   };
@@ -6647,7 +6779,7 @@ async function generateCanvasWithWhiteEdge() {
                 hiddenInput.value = cloudfrontLink;
 
               } else {
-                console.warn("❌ Hidden input with id 'final-image-data' not found");
+                console.warn("Hidden input with id 'final-image-data' not found");
               }
 
               const cvswElement = parseFloat(document.getElementById("cvs-w")?.textContent) || 0;
@@ -6686,14 +6818,14 @@ async function generateCanvasWithWhiteEdge() {
               appState.generatedImageUrl = cloudfrontLink;
 
             } else {
-              console.warn("❌ No cloudfrontLink in main API response");
+              console.warn("No cloudfrontLink in main API response");
             }
 
             try {
               thumbnailData = await uploadToThumbnailAPI(cloudfrontLink, userId, sessionId);
 
             } catch (thumbnailError) {
-              console.error("❌ Thumbnail API upload failed, but continuing:", thumbnailError);
+              console.error("Thumbnail API upload failed, but continuing:", thumbnailError);
               // Don't reject here, as main upload was successful
             }
 
@@ -6705,7 +6837,7 @@ async function generateCanvasWithWhiteEdge() {
             });
 
           } catch (apiError) {
-            console.error("❌ API upload failed:", apiError);
+            console.error("API upload failed:", apiError);
             reject(apiError);
           }
         }, 'image/jpeg');
@@ -6897,3 +7029,5 @@ window.getP2PPreviewAssets = createPreviewAssets;
 document.querySelector('.frm-note-close').addEventListener('click', () => {
   document.querySelector('.frm-image-note').style.display = 'none';
 });
+
+
