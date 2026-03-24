@@ -30,15 +30,9 @@ const appState = {
   newimageleft: 0,
   newimagetop: 0,
   border: 0,
-  baseEdgeType: "FitToEdge",
   selectedEdgeType: "FitToEdge",
-  isMirrorMode: false,
-  isPrintOnSideEnabled: true
 
 };
-
-const MIRROR_MODE_STORAGE_KEY = "p2pMirrorMode";
-const PRINT_ON_SIDE_STORAGE_KEY = "p2pPrintOnSide";
 
 let threedPreviewTimer = null;
 function triggerThreeDPreview() {
@@ -246,562 +240,8 @@ const mockupState = {
   croppedHeight: 0
 };
 
-function getCanvasFrontFaceBounds() {
-  const edgeSize = Number(appState.innerPadding ?? appState.borderSize ?? 0);
-  const canvasWidth = typeof canvas.getWidth === "function" ? canvas.getWidth() : canvas?.width;
-  const canvasHeight = typeof canvas.getHeight === "function" ? canvas.getHeight() : canvas?.height;
-
-  if (!Number.isFinite(canvasWidth) || !Number.isFinite(canvasHeight)) {
-    return null;
-  }
-
-  const width = canvasWidth - edgeSize * 2;
-  const height = canvasHeight - edgeSize * 2;
-  if (width <= 0 || height <= 0) {
-    return null;
-  }
-
-  return {
-    left: edgeSize,
-    top: edgeSize,
-    width,
-    height,
-    edgeSize
-  };
-}
-
-function getEffectiveEdgeType() {
-  if (appState.isMirrorMode) {
-    return "MirrorWrap";
-  }
-
-  return appState.baseEdgeType || appState.selectedEdgeType || "FitToEdge";
-}
-
-function syncSelectedEdgeType() {
-  const effectiveEdgeType = getEffectiveEdgeType();
-  const hiddenFormInput = document.getElementById("final-image-type-data");
-
-  appState.selectedEdgeType = effectiveEdgeType;
-
-  if (hiddenFormInput) {
-    hiddenFormInput.value = effectiveEdgeType;
-  }
-}
-
-function syncMirrorModeUI() {
-  const mirrorToggleBtn = document.getElementById("mirror-mode-toggle");
-  const mirrorInput = document.getElementById("mirror-mode-data");
-  const isActive = Boolean(appState.isMirrorMode);
-
-  if (mirrorToggleBtn) {
-    mirrorToggleBtn.classList.toggle("is-active", isActive);
-    mirrorToggleBtn.setAttribute("aria-pressed", String(isActive));
-    mirrorToggleBtn.textContent = isActive ? "Mirror edges on" : "Mirror edges off";
-  }
-
-  if (mirrorInput) {
-    mirrorInput.value = isActive ? "true" : "false";
-  }
-}
-
-function setMirrorMode(enabled, options = {}) {
-  const nextValue = Boolean(enabled);
-  const shouldPersist = options.persist !== false;
-
-  appState.isMirrorMode = nextValue;
-
-  if (shouldPersist) {
-    try {
-      sessionStorage.setItem(MIRROR_MODE_STORAGE_KEY, nextValue ? "true" : "false");
-    } catch (error) {
-      console.warn("Unable to persist mirror mode:", error);
-    }
-  }
-
-  syncSelectedEdgeType();
-  syncMirrorModeUI();
-
-  if (typeof window.drawBorderOnTop === "function") {
-    window.drawBorderOnTop();
-  }
-  canvas.requestRenderAll();
-  triggerThreeDPreview();
-}
-
-function initMirrorModeToggle() {
-  const mirrorToggleBtn = document.getElementById("mirror-mode-toggle");
-  if (!mirrorToggleBtn) return;
-
-  if (!mirrorToggleBtn.dataset.boundMirrorToggle) {
-    mirrorToggleBtn.addEventListener("click", () => {
-      setMirrorMode(!appState.isMirrorMode);
-    });
-    mirrorToggleBtn.dataset.boundMirrorToggle = "true";
-  }
-
-  let storedValue = null;
-  try {
-    storedValue = sessionStorage.getItem(MIRROR_MODE_STORAGE_KEY);
-  } catch (error) {
-    console.warn("Unable to read mirror mode state:", error);
-  }
-
-  setMirrorMode(storedValue === "true", { persist: false });
-}
-
-function getPrintOnSideCoverColor(edgeType = getEffectiveEdgeType()) {
-  return edgeType === "BlackWrap" ? "#000000" : "#ffffff";
-}
-
-function paintSideCoverAreas(targetCtx, canvasWidth, canvasHeight, edgeSize, fillColor = "#ffffff") {
-  if (!targetCtx || !Number.isFinite(edgeSize) || edgeSize <= 0) {
-    return;
-  }
-
-  const sideSize = Math.max(1, Math.round(edgeSize));
-  const middleHeight = Math.max(0, canvasHeight - sideSize * 2);
-
-  targetCtx.save();
-  targetCtx.fillStyle = fillColor;
-  targetCtx.fillRect(0, 0, canvasWidth, sideSize);
-  targetCtx.fillRect(0, canvasHeight - sideSize, canvasWidth, sideSize);
-  targetCtx.fillRect(0, sideSize, sideSize, middleHeight);
-  targetCtx.fillRect(canvasWidth - sideSize, sideSize, sideSize, middleHeight);
-  targetCtx.restore();
-}
-
-function drawCenterLinesOnTop(targetCtx) {
-  if (!targetCtx) return;
-
-  [vCenterLine, hCenterLine].forEach((line) => {
-    if (!line) return;
-
-    targetCtx.save();
-    targetCtx.globalAlpha = Number.isFinite(line.opacity) ? line.opacity : 1;
-    targetCtx.strokeStyle = line.stroke || "red";
-    targetCtx.lineWidth = Number.isFinite(line.strokeWidth) ? line.strokeWidth : 1;
-    targetCtx.setLineDash(Array.isArray(line.strokeDashArray) ? line.strokeDashArray : []);
-    targetCtx.beginPath();
-    targetCtx.moveTo(Number(line.x1) || 0, Number(line.y1) || 0);
-    targetCtx.lineTo(Number(line.x2) || 0, Number(line.y2) || 0);
-    targetCtx.stroke();
-    targetCtx.restore();
-  });
-}
-
-function syncPrintOnSideUI() {
-  const printOnSideToggleBtn = document.getElementById("print-on-side-toggle");
-  const printOnSideInput = document.getElementById("print-on-side-data");
-  const isActive = Boolean(appState.isPrintOnSideEnabled);
-
-  if (printOnSideToggleBtn) {
-    printOnSideToggleBtn.classList.toggle("is-active", isActive);
-    printOnSideToggleBtn.setAttribute("aria-pressed", String(isActive));
-    printOnSideToggleBtn.textContent = isActive ? "Print on side on" : "Print on side off";
-  }
-
-  if (printOnSideInput) {
-    printOnSideInput.value = isActive ? "true" : "false";
-  }
-}
-
-function setPrintOnSideEnabled(enabled, options = {}) {
-  const nextValue = Boolean(enabled);
-  const shouldPersist = options.persist !== false;
-
-  appState.isPrintOnSideEnabled = nextValue;
-
-  if (shouldPersist) {
-    try {
-      sessionStorage.setItem(PRINT_ON_SIDE_STORAGE_KEY, nextValue ? "true" : "false");
-    } catch (error) {
-      console.warn("Unable to persist print-on-side state:", error);
-    }
-  }
-
-  syncPrintOnSideUI();
-
-  if (typeof window.drawBorderOnTop === "function") {
-    window.drawBorderOnTop();
-  }
-  canvas.requestRenderAll();
-  triggerThreeDPreview();
-}
-
-function initPrintOnSideToggle() {
-  const printOnSideToggleBtn = document.getElementById("print-on-side-toggle");
-  if (!printOnSideToggleBtn) return;
-
-  if (!printOnSideToggleBtn.dataset.boundPrintOnSideToggle) {
-    printOnSideToggleBtn.addEventListener("click", () => {
-      setPrintOnSideEnabled(!appState.isPrintOnSideEnabled);
-    });
-    printOnSideToggleBtn.dataset.boundPrintOnSideToggle = "true";
-  }
-
-  let storedValue = null;
-  try {
-    storedValue = sessionStorage.getItem(PRINT_ON_SIDE_STORAGE_KEY);
-  } catch (error) {
-    console.warn("Unable to read print-on-side state:", error);
-  }
-
-  setPrintOnSideEnabled(storedValue !== "false", { persist: false });
-}
-
-function createSizedCanvas(width, height) {
-  const canvasEl = document.createElement("canvas");
-  canvasEl.width = Math.max(1, Math.round(width));
-  canvasEl.height = Math.max(1, Math.round(height));
-  return canvasEl;
-}
-
-function createFrontFaceSnapshotCanvas(targetWidth, targetHeight, sourceOverride = null) {
-  const bounds = getCanvasFrontFaceBounds();
-  const imageObject = appState.uploadedImage;
-  const sourceImage = sourceOverride || (typeof imageObject?.getElement === "function"
-    ? imageObject.getElement()
-    : (imageObject?._element || imageObject?._originalElement));
-
-  if (!bounds || !imageObject || !sourceImage) {
-    return null;
-  }
-
-  const faceCanvas = createSizedCanvas(targetWidth ?? bounds.width, targetHeight ?? bounds.height);
-  const faceCtx = faceCanvas.getContext("2d");
-  if (!faceCtx) {
-    return null;
-  }
-
-  const sourceWidth = Number(sourceImage.naturalWidth || sourceImage.videoWidth || sourceImage.width || imageObject.width);
-  const sourceHeight = Number(sourceImage.naturalHeight || sourceImage.videoHeight || sourceImage.height || imageObject.height);
-  if (!Number.isFinite(sourceWidth) || !Number.isFinite(sourceHeight) || sourceWidth <= 0 || sourceHeight <= 0) {
-    return null;
-  }
-
-  const scaleX = Number(imageObject.scaleX) || 1;
-  const scaleY = Number(imageObject.scaleY) || 1;
-  const originX = imageObject.originX || "left";
-  const originY = imageObject.originY || "top";
-
-  let objectLeft = Number(imageObject.left) || 0;
-  let objectTop = Number(imageObject.top) || 0;
-
-  if (originX === "center") {
-    objectLeft -= (sourceWidth * scaleX) / 2;
-  } else if (originX === "right") {
-    objectLeft -= sourceWidth * scaleX;
-  }
-
-  if (originY === "center") {
-    objectTop -= (sourceHeight * scaleY) / 2;
-  } else if (originY === "bottom") {
-    objectTop -= sourceHeight * scaleY;
-  }
-
-  const faceScaleX = faceCanvas.width / bounds.width;
-  const faceScaleY = faceCanvas.height / bounds.height;
-  const drawLeft = (objectLeft - bounds.left) * faceScaleX;
-  const drawTop = (objectTop - bounds.top) * faceScaleY;
-  const scaledWidth = sourceWidth * scaleX * faceScaleX;
-  const scaledHeight = sourceHeight * scaleY * faceScaleY;
-
-  faceCtx.fillStyle = "#ffffff";
-  faceCtx.fillRect(0, 0, faceCanvas.width, faceCanvas.height);
-  faceCtx.imageSmoothingEnabled = true;
-  faceCtx.drawImage(
-    sourceImage,
-    0,
-    0,
-    sourceWidth,
-    sourceHeight,
-    drawLeft,
-    drawTop,
-    scaledWidth,
-    scaledHeight
-  );
-
-  return faceCanvas;
-}
-
-async function createFrontFaceSnapshotFromRenderedCanvas(bounds, targetWidth, targetHeight, multiplier = 2) {
-  if (!bounds) {
-    return null;
-  }
-
-  try {
-    const renderedDataUrl = canvas.toDataURL({
-      format: "jpeg",
-      multiplier
-    });
-    const renderedImage = await loadImageFromAnySource(renderedDataUrl);
-    const snapshotCanvas = createSizedCanvas(targetWidth, targetHeight);
-    const snapshotCtx = snapshotCanvas.getContext("2d");
-
-    if (!snapshotCtx) {
-      return null;
-    }
-
-    const sourceLeft = Math.max(0, Math.round(bounds.left * multiplier));
-    const sourceTop = Math.max(0, Math.round(bounds.top * multiplier));
-    const sourceWidth = Math.max(1, Math.round(bounds.width * multiplier));
-    const sourceHeight = Math.max(1, Math.round(bounds.height * multiplier));
-
-    snapshotCtx.fillStyle = "#ffffff";
-    snapshotCtx.fillRect(0, 0, snapshotCanvas.width, snapshotCanvas.height);
-    snapshotCtx.imageSmoothingEnabled = true;
-    snapshotCtx.drawImage(
-      renderedImage,
-      sourceLeft,
-      sourceTop,
-      sourceWidth,
-      sourceHeight,
-      0,
-      0,
-      snapshotCanvas.width,
-      snapshotCanvas.height
-    );
-
-    return {
-      canvas: snapshotCanvas,
-      dataUrl: snapshotCanvas.toDataURL("image/jpeg")
-    };
-  } catch (error) {
-    console.warn("Front-face rendered-canvas fallback failed:", error);
-    return null;
-  }
-}
-
-async function createFrontFaceSnapshotUploadData(multiplier = 2) {
-  const bounds = getCanvasFrontFaceBounds();
-  if (!bounds) {
-    return null;
-  }
-
-  const targetWidth = Math.max(1, Math.round(bounds.width * multiplier));
-  const targetHeight = Math.max(1, Math.round(bounds.height * multiplier));
-
-  const trySerializeSnapshot = (snapshotCanvas) => {
-    if (!snapshotCanvas) {
-      return null;
-    }
-
-    try {
-      return {
-        canvas: snapshotCanvas,
-        dataUrl: snapshotCanvas.toDataURL("image/jpeg")
-      };
-    } catch (error) {
-      console.warn("Front-face snapshot needs a safe image source:", error);
-      return null;
-    }
-  };
-
-  if (appState.uploadedImage) {
-    const directSnapshot = trySerializeSnapshot(
-      createFrontFaceSnapshotCanvas(targetWidth, targetHeight)
-    );
-    if (directSnapshot) {
-      return directSnapshot;
-    }
-
-    const imageObject = appState.uploadedImage;
-    const sourceImage = typeof imageObject?.getElement === "function"
-      ? imageObject.getElement()
-      : (imageObject?._element || imageObject?._originalElement);
-    const sourceUrl = sourceImage?.currentSrc || sourceImage?.src;
-
-    if (sourceUrl) {
-      try {
-        const safeSourceDataUrl = await urlToBase64(sourceUrl);
-        const safeSourceImage = await loadImageFromAnySource(safeSourceDataUrl);
-        const safeSnapshot = trySerializeSnapshot(
-          createFrontFaceSnapshotCanvas(targetWidth, targetHeight, safeSourceImage)
-        );
-
-        if (safeSnapshot) {
-          return safeSnapshot;
-        }
-      } catch (error) {
-        console.warn("Front-face safe-source fallback failed:", error);
-      }
-    }
-  }
-
-  return createFrontFaceSnapshotFromRenderedCanvas(bounds, targetWidth, targetHeight, multiplier);
-}
-
-function loadImageFromAnySource(source) {
-  return new Promise((resolve, reject) => {
-    if (source instanceof HTMLImageElement) {
-      if (source.complete && source.naturalHeight !== 0) {
-        resolve(source);
-        return;
-      }
-
-      source.onload = () => resolve(source);
-      source.onerror = () => reject(new Error("Failed to load image element"));
-      return;
-    }
-
-    if (source instanceof HTMLCanvasElement) {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error("Failed to load canvas image"));
-      img.src = source.toDataURL();
-      return;
-    }
-
-    if (source instanceof File || source instanceof Blob) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error("Failed to load file/blob image"));
-        img.src = event.target.result;
-      };
-      reader.onerror = () => reject(new Error("Failed to read file"));
-      reader.readAsDataURL(source);
-      return;
-    }
-
-    const resolvedSource = typeof source === "string"
-      ? source
-      : source?.src || source?.url || source?.imageUrl || source?.data || source?.image || source?.link;
-
-    if (!resolvedSource) {
-      reject(new Error(`Unsupported image source type: ${typeof source}`));
-      return;
-    }
-
-    const img = new Image();
-    if (!resolvedSource.startsWith("data:") && !resolvedSource.startsWith("blob:")) {
-      img.crossOrigin = "anonymous";
-    }
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Failed to load image source"));
-    img.src = resolvedSource;
-  });
-}
-
-function drawMirroredEdgeStrips(ctx, faceCanvas, edgeSize, destX = 0, destY = 0, drawCenter = false) {
-  if (!ctx || !faceCanvas) return;
-
-  const faceWidth = faceCanvas.width;
-  const faceHeight = faceCanvas.height;
-  const edge = Math.max(1, Math.round(edgeSize));
-  const horizontalSample = Math.max(1, Math.min(edge, faceHeight));
-  const verticalSample = Math.max(1, Math.min(edge, faceWidth));
-
-  if (drawCenter) {
-    ctx.drawImage(faceCanvas, destX + edge, destY + edge, faceWidth, faceHeight);
-  }
-
-  ctx.save();
-  ctx.translate(destX + edge, destY + edge);
-  ctx.scale(1, -1);
-  ctx.drawImage(faceCanvas, 0, 0, faceWidth, horizontalSample, 0, 0, faceWidth, edge);
-  ctx.restore();
-
-  ctx.save();
-  ctx.translate(destX + edge, destY + faceHeight + edge * 2);
-  ctx.scale(1, -1);
-  ctx.drawImage(
-    faceCanvas,
-    0,
-    Math.max(0, faceHeight - horizontalSample),
-    faceWidth,
-    horizontalSample,
-    0,
-    0,
-    faceWidth,
-    edge
-  );
-  ctx.restore();
-
-  ctx.save();
-  ctx.translate(destX + edge, destY + edge);
-  ctx.scale(-1, 1);
-  ctx.drawImage(faceCanvas, 0, 0, verticalSample, faceHeight, 0, 0, edge, faceHeight);
-  ctx.restore();
-
-  ctx.save();
-  ctx.translate(destX + faceWidth + edge * 2, destY + edge);
-  ctx.scale(-1, 1);
-  ctx.drawImage(
-    faceCanvas,
-    Math.max(0, faceWidth - verticalSample),
-    0,
-    verticalSample,
-    faceHeight,
-    0,
-    0,
-    edge,
-    faceHeight
-  );
-  ctx.restore();
-
-  const cornerSampleSize = Math.max(1, Math.min(edge, faceWidth, faceHeight));
-  const cornerConfigs = [
-    { dx: destX + edge, dy: destY + edge, sx: 0, sy: 0 },
-    {
-      dx: destX + faceWidth + edge * 2,
-      dy: destY + edge,
-      sx: Math.max(0, faceWidth - cornerSampleSize),
-      sy: 0
-    },
-    {
-      dx: destX + edge,
-      dy: destY + faceHeight + edge * 2,
-      sx: 0,
-      sy: Math.max(0, faceHeight - cornerSampleSize)
-    },
-    {
-      dx: destX + faceWidth + edge * 2,
-      dy: destY + faceHeight + edge * 2,
-      sx: Math.max(0, faceWidth - cornerSampleSize),
-      sy: Math.max(0, faceHeight - cornerSampleSize)
-    }
-  ];
-
-  cornerConfigs.forEach(({ dx, dy, sx, sy }) => {
-    ctx.save();
-    ctx.translate(dx, dy);
-    ctx.scale(-1, -1);
-    ctx.drawImage(faceCanvas, sx, sy, cornerSampleSize, cornerSampleSize, 0, 0, edge, edge);
-    ctx.restore();
-  });
-}
-
-function drawMirrorPreviewOnTop(ctx, edgeSize) {
-  if (!appState.isMirrorMode || !appState.uploadedImage || !Number.isFinite(edgeSize) || edgeSize <= 0) {
-    return false;
-  }
-
-  const bounds = getCanvasFrontFaceBounds();
-  if (!bounds) {
-    return false;
-  }
-
-  const faceCanvas = createFrontFaceSnapshotCanvas(bounds.width, bounds.height);
-  if (!faceCanvas) {
-    return false;
-  }
-
-  ctx.save();
-  drawMirroredEdgeStrips(ctx, faceCanvas, edgeSize, 0, 0, false);
-  ctx.restore();
-
-  return true;
-}
-
 document.addEventListener("DOMContentLoaded", initWrapSelector);
 window.addEventListener("load", initWrapSelector);
-document.addEventListener("DOMContentLoaded", initMirrorModeToggle);
-window.addEventListener("load", initMirrorModeToggle);
-document.addEventListener("DOMContentLoaded", initPrintOnSideToggle);
-window.addEventListener("load", initPrintOnSideToggle);
 function initWrapSelector() {
 
   const options = document.querySelectorAll('.wrap-option');
@@ -894,21 +334,24 @@ function initWrapSelector() {
     if (!value) value = sessionStorage.getItem("selectedWrap");
     if (!value) return;
 
+    const hiddenFormInput = document.getElementById("final-image-type-data");
+
     if (value === "black") {
-      window.appState.baseEdgeType = "BlackWrap";
-      syncSelectedEdgeType();
+      appState.selectedEdgeType = "BlackWrap";
+      if (hiddenFormInput) hiddenFormInput.value = "BlackWrap";
       coverFrame("black");
     }
 
     else if (value === "white") {
-      window.appState.baseEdgeType = "WhiteWrap";
-      syncSelectedEdgeType();
+      appState.selectedEdgeType = "WhiteWrap";
+      if (hiddenFormInput) hiddenFormInput.value = "WhiteWrap";
       coverFrame("white");
     }
 
     else {
-      window.appState.baseEdgeType = "FitToEdge";
-      syncSelectedEdgeType();
+      appState.selectedEdgeType = "FitToEdge";
+      if (hiddenFormInput) hiddenFormInput.value = "FitToEdge";
+      // fitImageToFrame(true);
       FitFrontFrame();
     }
   }
@@ -1057,74 +500,9 @@ function waitForCanvasRenderComplete() {
   });
 }
 
-function configureEditableImageControls(image) {
-  if (!image) return;
-
-  image.set({
-    selectable: true,
-    evented: true,
-    hasBorders: true,
-    hasControls: true,
-    lockRotation: true,
-    lockScalingFlip: true,
-    lockUniScaling: true,
-    originX: "center",
-    originY: "center",
-    clipPath: appState.clipPath || null,
-    cornerStyle: "circle",
-    cornerColor: "#ffffff",
-    cornerStrokeColor: "#111111",
-    transparentCorners: false,
-    cornerSize: 12,
-    borderColor: "rgba(255,255,255,0.9)",
-    borderDashArray: [4, 4],
-    padding: 0,
-    objectCaching: false,
-    noScaleCache: false,
-    hoverCursor: "move",
-    moveCursor: "move"
-  });
-
-  image.setControlsVisibility({
-    mt: false,
-    mb: false,
-    ml: false,
-    mr: false,
-    mtr: false
-  });
-}
-
-canvas.on("object:scaling", function (opt) {
-  const target = opt?.target;
-
-  if (target === appState.uploadedImage) {
-    const baseScale = getBaseScale();
-
-    if (baseScale > 0 && Number.isFinite(baseScale)) {
-      const requestedZoom = target.scaleX / baseScale;
-      const clampedZoom = clampZoomByDpi(requestedZoom, MIN_PRINT_DPI);
-      const clampedScale = baseScale * clampedZoom;
-
-      if (requestedZoom > (clampedZoom + 0.000001)) {
-        target.scaleX = clampedScale;
-        target.scaleY = clampedScale;
-        showZoomLimitMessage();
-      } else {
-        target.scaleY = target.scaleX;
-      }
-
-      appState.scaleFactor = target.scaleX;
-      appState.zoom = clampedZoom;
-    }
-  }
-
+canvas.on("object:scaling", function () {
   updateMovementConstraints();
   updatePositionInfo();
-
-  if (target === appState.uploadedImage) {
-    syncZoomSlider();
-    updateZoomControlsState();
-  }
 });
 
 canvas.on("object:rotating", function () {
@@ -1686,8 +1064,6 @@ function updateFrameFromPixels(width, height, width1, height1) {
     }
   }
 
-  appState.innerPadding = innerPadding;
-  appState.borderSize = innerPadding;
   appState.innerWidth = width - innerPadding * 2;
   appState.innerHeight = height - innerPadding * 2;
 
@@ -1719,9 +1095,6 @@ function updateFrameFromPixels(width, height, width1, height1) {
 
     ctx.save();
 
-    if (!appState.isPrintOnSideEnabled) {
-      paintSideCoverAreas(ctx, bw, bh, borderSize, getPrintOnSideCoverColor());
-    }
 
     const dashOffset = 0.5;
     ctx.setLineDash([5, 2]);
@@ -1733,6 +1106,7 @@ function updateFrameFromPixels(width, height, width1, height1) {
     ctx.beginPath(); ctx.moveTo(dashOffset, 0); ctx.lineTo(dashOffset, bh); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(bw - dashOffset, 0); ctx.lineTo(bw - dashOffset, bh); ctx.stroke();
 
+
     ctx.beginPath(); ctx.moveTo(0, borderSize + dashOffset); ctx.lineTo(bw, borderSize + dashOffset); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(0, bh - borderSize - dashOffset); ctx.lineTo(bw, bh - borderSize - dashOffset); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(borderSize + dashOffset, 0); ctx.lineTo(borderSize + dashOffset, bh); ctx.stroke();
@@ -1740,17 +1114,39 @@ function updateFrameFromPixels(width, height, width1, height1) {
 
     ctx.setLineDash([]);
 
-    const mirrorPreviewDrawn = appState.isPrintOnSideEnabled && drawMirrorPreviewOnTop(ctx, borderSize);
 
-    if (!mirrorPreviewDrawn) {
-      ctx.fillStyle = "#ffffff00";
-      ctx.fillRect(0, 0, bw, borderSize);
-      ctx.fillRect(0, bh - borderSize, bw, borderSize);
-      ctx.fillRect(0, borderSize, borderSize, bh - borderSize * 2);
-      ctx.fillRect(bw - borderSize, borderSize, borderSize, bh - borderSize * 2);
-    }
+    ctx.fillStyle = "#ffffff00";
 
-    drawCenterLinesOnTop(ctx);
+    ctx.fillRect(0, 0, bw, borderSize);
+    ctx.fillRect(0, bh - borderSize, bw, borderSize);
+    ctx.fillRect(0, borderSize, borderSize, bh - borderSize * 2);
+    ctx.fillRect(bw - borderSize, borderSize, borderSize, bh - borderSize * 2);
+
+
+    // ctx.fillStyle = "black";
+    // const fontSize = 8;
+    // ctx.font = `${fontSize}px sans-serif`;
+    // ctx.textAlign = "center";
+    // ctx.textBaseline = "middle";
+
+    // // Top & bottom
+    // ctx.fillText("SIDE AND BACK", bw / 2, borderSize / 2);
+    // ctx.fillText("SIDE AND BACK", bw / 2, bh - borderSize / 2);
+
+    // // Left
+    // ctx.save();
+    // ctx.translate(borderSize / 2, bh / 2);
+    // ctx.rotate(Math.PI / 2);
+    // ctx.fillText("SIDE AND BACK", 0, 0);
+    // ctx.restore();
+
+    // // Right
+    // ctx.save();
+    // ctx.translate(bw - borderSize / 2, bh / 2);
+    // ctx.rotate(-Math.PI / 2);
+    // ctx.fillText("SIDE AND BACK", 0, 0);
+    // ctx.restore();
+
     ctx.restore();
   }
 
@@ -2459,8 +1855,26 @@ uploadInput.addEventListener("change", async function (e) {
             if (imgfileWElement) imgfileWElement.textContent = fabricImg.width;
             if (imgfileHElement) imgfileHElement.textContent = fabricImg.height;
 
-            configureEditableImageControls(fabricImg);
+            fabricImg.set({
+              selectable: true,
+              evented: true,
+              hasBorders: false,
+              hasControls: false,
+              lockRotation: true,
+              lockScalingFlip: true,
+              lockUniScaling: true,
+              originX: "center",
+              originY: "center",
+              clipPath: appState.clipPath
+            });
 
+            fabricImg.setControlsVisibility({
+              mt: false,
+              mb: false,
+              ml: false,
+              mr: false,
+              mtr: false
+            });
 
             canvas.add(fabricImg);
             setMovementConstraints();
@@ -3303,8 +2717,17 @@ window.addEventListener("DOMContentLoaded", () => {
 
         fabric.Image.fromURL(sessionImageData1, function (img) {
           appState.uploadedImage = img;
-          configureEditableImageControls(appState.uploadedImage);
-
+          appState.uploadedImage.set({
+            selectable: true,
+            hasBorders: false,
+            hasControls: false,
+            lockRotation: true,
+            lockScalingFlip: true,
+            lockUniScaling: true,
+            originX: "center",
+            originY: "center",
+            clipPath: appState.clipPath,
+          });
 
           canvas.add(appState.uploadedImage);
           setMovementConstraints(); // Add this
@@ -3630,15 +3053,6 @@ async function sendMainImageToAPI(e) {
       return;
     }
 
-    if (edgeType === "MirrorWrap") {
-      await generateCanvasWithMirrorEdge();
-      if (finalpopup1) finalpopup1.style.display = "none";
-      if (finalpopup2) finalpopup2.style.display = "block";
-
-      btn.textContent = "Added!";
-      return;
-    }
-
     // =========================================
     // WHITE WRAP FLOW
     // =========================================
@@ -3663,7 +3077,7 @@ async function sendMainImageToAPI(e) {
 async function urlToBase64(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    img.crossOrigin = "https://prompt2prints.com";
     img.onload = () => {
       const canvasEl = document.createElement("canvas");
       canvasEl.width = img.width;
@@ -3996,24 +3410,22 @@ async function exportFullDivAsImage(customerId, sessionId) {
   canvas.renderAll();
 
   try {
-    const snapshot = await createFrontFaceSnapshotUploadData(2);
-    if (!snapshot?.canvas || !snapshot.dataUrl) {
-      throw new Error("Unable to create front-face snapshot");
-    }
+    const images = canvas.getObjects("image");
+    await Promise.all(images.map(img => reloadImageAsBase64(img)));
 
-    const blob = await new Promise((resolve, reject) => {
-      snapshot.canvas.toBlob((value) => {
-        if (value) {
-          resolve(value);
-          return;
-        }
 
-        reject(new Error("Failed to create front-face snapshot blob"));
-      }, "image/jpeg", 0.92);
+    // 1️⃣ Export canvas to data URL
+    const dataURL = canvas.toDataURL({
+      format: "jpeg",
+      multiplier: 2,
     });
+    // const paddedDataURL = await addPaddingToDataURL(dataURL, 0);
+
+    const res = await fetch(dataURL);
+    const blob = await res.blob();
 
     const formData = new FormData();
-    formData.append("file", blob, "front-face-image.jpeg");
+    formData.append("file", blob, "full-div-image.jpeg");
     formData.append("customerId", customerId);
     formData.append("sessionId", sessionId);
     formData.append("thumbnailWidth", "200");
@@ -4034,6 +3446,7 @@ async function exportFullDivAsImage(customerId, sessionId) {
     const hiddenInput1 = document.getElementById("preview-thumb-image-data");
     if (hiddenInput1 && data.thumbnail?.cloudfrontUrl) hiddenInput1.value = data.thumbnail.cloudfrontUrl;
 
+    // Optional: display padded image in .full-content
     let fullContentDiv = document.querySelector(".full-content");
     if (!fullContentDiv) {
       fullContentDiv = document.createElement("div");
@@ -4042,11 +3455,12 @@ async function exportFullDivAsImage(customerId, sessionId) {
     }
     fullContentDiv.innerHTML = "";
     const imgElement = document.createElement("img");
-    imgElement.src = snapshot.dataUrl;
+    imgElement.src = dataURL;
     fullContentDiv.appendChild(imgElement);
+    removeSelectedElements([1, 2, 3]);
 
   } catch (err) {
-    console.error("Error exporting front face:", err);
+    console.error("Error exporting full div:", err);
   } finally {
     canvas.getObjects().forEach(obj => obj.set({
       selectable: true,
@@ -4205,8 +3619,17 @@ async function upscaleAndFixDPI({
       canvas.setBackgroundColor("#ffffff", canvas.renderAll.bind(canvas));
 
       appState.uploadedImage = img;
-      configureEditableImageControls(appState.uploadedImage);
-
+      appState.uploadedImage.set({
+        selectable: true,
+        hasBorders: false,
+        hasControls: false,
+        lockRotation: true,
+        lockScalingFlip: true,
+        lockUniScaling: true,
+        originX: "center",
+        originY: "center",
+        clipPath: appState.clipPath || null
+      });
 
       canvas.add(appState.uploadedImage);
 
@@ -5274,10 +4697,6 @@ async function generateCanvasWithBlackEdge() {
       filehvalue
     );
 
-    if (!appState.isPrintOnSideEnabled) {
-      paintSideCoverAreas(ctx1, canvasnewblack.width, canvasnewblack.height, appState.newBorder || 0, getPrintOnSideCoverColor("BlackWrap"));
-    }
-
     // Draw border
     ctx1.strokeStyle = appState.borderColor || "#000000";
     ctx1.lineWidth = (appState.newBorder || 10) * 2;
@@ -5451,252 +4870,6 @@ async function generateCanvasWithBlackEdge() {
 
 // Make the function globally accessible
 window.generateCanvasWithBlackEdge = generateCanvasWithBlackEdge;
-
-async function uploadRenderedEdgeCanvas(renderCanvas, fileName) {
-  const base64ToBlob = (base64Data) => {
-    const parts = base64Data.split(';base64,');
-    const contentType = parts[0].split(':')[1];
-    const raw = window.atob(parts[1]);
-    const uInt8Array = new Uint8Array(raw.length);
-
-    for (let i = 0; i < raw.length; ++i) {
-      uInt8Array[i] = raw.charCodeAt(i);
-    }
-
-    return new Blob([uInt8Array], { type: contentType });
-  };
-
-  const uploadToThumbnailAPI = async (cloudfrontLink, customerId, sessionId) => {
-    const formData = new FormData();
-    formData.append("customerId", customerId);
-    formData.append("sessionId", sessionId);
-    formData.append("thumbnailWidth", "200");
-    formData.append("imageUrl", cloudfrontLink);
-
-    const response = await fetch(`${window.Prompt2Prints.apiBase}/image-thumbnail`, {
-      method: "POST",
-      headers: {
-        "x-api-key": window.Prompt2Prints.apiKey
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Thumbnail API responded with status: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    const previewInput = document.getElementById("preview-image-data");
-    if (previewInput && data.original?.cloudfrontUrl) {
-      previewInput.value = data.original.cloudfrontUrl;
-    }
-
-    const previewThumbInput = document.getElementById("preview-thumb-image-data");
-    if (previewThumbInput && data.thumbnail?.cloudfrontUrl) {
-      previewThumbInput.value = data.thumbnail.cloudfrontUrl;
-    }
-
-    return data;
-  };
-
-  return new Promise((resolve, reject) => {
-    renderCanvas.toBlob(async (blob) => {
-      if (!blob) {
-        reject(new Error("Failed to create blob from canvas"));
-        return;
-      }
-
-      try {
-        const formData = new FormData();
-        const userId = window.shopifyCustomerId || "guest";
-        const sessionId = getLocalStorage1Day("sessionId") || "none";
-        const imageData = renderCanvas.toDataURL("image/jpeg");
-
-        if (imageData.startsWith("http") || imageData.startsWith("//")) {
-          formData.append("imageUrl", imageData);
-        } else if (imageData.startsWith("data:image/")) {
-          const imageBlob = base64ToBlob(imageData);
-          formData.append("file", imageBlob, fileName);
-        } else {
-          reject(new Error("Invalid image data format"));
-          return;
-        }
-
-        formData.append("customerId", userId);
-        formData.append("sessionId", sessionId);
-
-        const response = await fetch(`${window.Prompt2Prints.apiBase}/upload-image`, {
-          method: "POST",
-          headers: {
-            "x-api-key": window.Prompt2Prints.apiKey
-          },
-          body: formData,
-        });
-
-        if (!response.ok) {
-          throw new Error(`Main API responded with status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const imageUpscale = document.querySelector('input[name="properties[_pdp-allow-upscale]"]');
-        const imageUpscaletag = document.querySelector('input[name="properties[_pdp-img-tag]"]');
-
-        if (imageUpscale && imageUpscaletag) {
-          const flag = (data.flag || "").toLowerCase();
-
-          if (flag === "standard") {
-            imageUpscale.value = "true";
-            imageUpscaletag.value = "Standard";
-          } else if (flag === "professional") {
-            imageUpscale.value = "false";
-            imageUpscaletag.value = "Professional";
-          } else {
-            imageUpscale.value = "";
-            imageUpscaletag.value = "";
-          }
-
-          imageUpscale.setAttribute("value", imageUpscale.value);
-          imageUpscaletag.setAttribute("value", imageUpscaletag.value);
-        }
-
-        let thumbnailData = null;
-        if (data.cloudfrontLink) {
-          const hiddenInput = document.getElementById("final-image-data");
-          if (hiddenInput) {
-            hiddenInput.value = data.cloudfrontLink;
-          }
-
-          const cvswElement = parseFloat(document.getElementById("cvs-w")?.textContent) || 0;
-          const cvshElement = parseFloat(document.getElementById("cvs-h")?.textContent) || 0;
-          const hiddenimg = document.getElementById("frame-img-position");
-          const orientationRadio = document.querySelector('input[name="orientation"]:checked');
-          const orientation = orientationRadio ? orientationRadio.value : "portrait";
-
-          if (hiddenimg) {
-            const payload = orientation === "landscape"
-              ? {
-                  area_width: cvshElement,
-                  area_height: cvswElement,
-                  width: appState.newCanvasHeight,
-                  height: appState.newCanvasWidth,
-                  top: 0,
-                  left: 0,
-                }
-              : {
-                  area_width: cvswElement,
-                  area_height: cvshElement,
-                  width: appState.newCanvasWidth,
-                  height: appState.newCanvasHeight,
-                  top: 0,
-                  left: 0,
-                };
-
-            hiddenimg.value = JSON.stringify(payload);
-          }
-
-          appState.generatedImageUrl = data.cloudfrontLink;
-          thumbnailData = await uploadToThumbnailAPI(data.cloudfrontLink, userId, sessionId);
-        }
-
-        resolve({
-          success: true,
-          cloudfrontLink: data.cloudfrontLink,
-          thumbnailData,
-          mainApiData: data
-        });
-      } catch (error) {
-        reject(error);
-      }
-    }, "image/jpeg");
-  });
-}
-
-async function generateCanvasWithMirrorEdge() {
-  updatePositionInfo();
-
-  const imageSource = appState.uploadedImageForBlackEdge || appState.uploadedImage;
-
-  if (!imageSource) {
-    alert("Please upload an image first!");
-    throw new Error("No uploaded image found");
-  }
-
-  if (!appState.newCanvasWidth || !appState.newCanvasHeight) {
-    alert("Canvas dimensions not calculated. Please position the image first.");
-    throw new Error("Canvas dimensions not calculated");
-  }
-
-  const edgeSize = Number(appState.newBorder || 0);
-  if (!Number.isFinite(edgeSize) || edgeSize <= 0) {
-    throw new Error("Mirror edge size is invalid");
-  }
-
-  const faceWidth = Math.max(1, Math.round(appState.newCanvasWidth - edgeSize * 2));
-  const faceHeight = Math.max(1, Math.round(appState.newCanvasHeight - edgeSize * 2));
-  const image = await loadImageFromAnySource(imageSource);
-  const filewvalue = parseFloat(document.getElementById("img-file-w")?.textContent) || image.naturalWidth || image.width || 0;
-  const filehvalue = parseFloat(document.getElementById("img-file-h")?.textContent) || image.naturalHeight || image.height || 0;
-
-  const compositionCanvas = document.createElement("canvas");
-  compositionCanvas.width = Math.max(1, Math.round(appState.newCanvasWidth));
-  compositionCanvas.height = Math.max(1, Math.round(appState.newCanvasHeight));
-
-  const compositionCtx = compositionCanvas.getContext("2d");
-  if (!compositionCtx) {
-    throw new Error("Unable to create mirror composition canvas");
-  }
-
-  compositionCtx.fillStyle = "#ffffff";
-  compositionCtx.fillRect(0, 0, compositionCanvas.width, compositionCanvas.height);
-  compositionCtx.imageSmoothingEnabled = true;
-  compositionCtx.drawImage(
-    image,
-    appState.newimageleft || 0,
-    appState.newimagetop || 0,
-    filewvalue,
-    filehvalue
-  );
-
-  const faceCanvas = document.createElement("canvas");
-  faceCanvas.width = faceWidth;
-  faceCanvas.height = faceHeight;
-
-  const faceCtx = faceCanvas.getContext("2d");
-  if (!faceCtx) {
-    throw new Error("Unable to create front-face canvas for mirror wrap");
-  }
-
-  faceCtx.drawImage(
-    compositionCanvas,
-    edgeSize,
-    edgeSize,
-    faceWidth,
-    faceHeight,
-    0,
-    0,
-    faceWidth,
-    faceHeight
-  );
-
-  canvasnewblack.width = Math.max(1, Math.round(appState.newCanvasWidth));
-  canvasnewblack.height = Math.max(1, Math.round(appState.newCanvasHeight));
-
-  ctx1.clearRect(0, 0, canvasnewblack.width, canvasnewblack.height);
-  ctx1.fillStyle = "#ffffff";
-  ctx1.fillRect(0, 0, canvasnewblack.width, canvasnewblack.height);
-  ctx1.imageSmoothingEnabled = true;
-
-  if (appState.isPrintOnSideEnabled) {
-    drawMirroredEdgeStrips(ctx1, faceCanvas, edgeSize, 0, 0, true);
-  } else {
-    ctx1.drawImage(faceCanvas, edgeSize, edgeSize, faceWidth, faceHeight);
-  }
-
-  return uploadRenderedEdgeCanvas(canvasnewblack, "canvas-with-mirror-edge.jpeg");
-}
-
-window.generateCanvasWithMirrorEdge = generateCanvasWithMirrorEdge;
 
 async function generateCanvasWithWhiteEdge() {
 
@@ -6030,10 +5203,6 @@ async function generateCanvasWithWhiteEdge() {
       filehvalue
     );
 
-    if (!appState.isPrintOnSideEnabled) {
-      paintSideCoverAreas(ctx1, canvasnewblack.width, canvasnewblack.height, appState.newBorder || 0, getPrintOnSideCoverColor("WhiteWrap"));
-    }
-
     // Draw border
     ctx1.strokeStyle = "#fff";
     ctx1.lineWidth = (appState.newBorder || 10) * 2;
@@ -6341,20 +5510,22 @@ if (!appState.uploadedImageForBlackEdge) {
 function setWrap() {
   value = sessionStorage.getItem("selectedWrap");
   if (!value) return;
+  const hiddenFormInput = document.getElementById("final-image-type-data");
 
   if (value === "black") {
-    appState.baseEdgeType = "BlackWrap";
-    syncSelectedEdgeType();
+    appState.selectedEdgeType = "BlackWrap";
+    if (hiddenFormInput) hiddenFormInput.value = "BlackWrap";
     coverFrame("black");
   }
   else if (value === "white") {
-    appState.baseEdgeType = "WhiteWrap";
-    syncSelectedEdgeType();
+    appState.selectedEdgeType = "WhiteWrap";
+    if (hiddenFormInput) hiddenFormInput.value = "WhiteWrap";
     coverFrame("white");
   }
   else if (value === "fit") {
-    appState.baseEdgeType = "FitToEdge";
-    syncSelectedEdgeType();
+    appState.selectedEdgeType = "FitToEdge";
+    if (hiddenFormInput) hiddenFormInput.value = "FitToEdge";
+    // fitImageToFrame(true);
     FitFrontFrame();
   }
 }
