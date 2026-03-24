@@ -246,8 +246,8 @@
      
 .canvas-container {
       position: relative;
-      width: 300px;
-      height: 300px;
+      width: 200px;
+      height: 200px;
     }
 
 
@@ -361,56 +361,6 @@
     gap: 4px;
     flex-direction: column;
         align-items: flex-start;
-}
-.mirror-mode-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 132px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.06);
-  color: #ffffff;
-  font-family: 'Instrument Sans';
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1;
-  cursor: pointer;
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-.mirror-mode-toggle.is-active {
-  background: #ffffff;
-  border-color: #ffffff;
-  color: #101011;
-}
-
-.mirror-mode-toggle:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.mirror-mode-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.mirror-mode-hint {
-  margin: 8px 0 0;
-  max-width: 180px;
-  color: rgba(255, 255, 255, 0.72);
-  font-family: 'Instrument Sans';
-  font-size: 11px;
-  line-height: 1.4;
-  text-align: right;
-}
-
-.canvas-wrap {
-  position: relative;
-  overflow: hidden;
-  touch-action: none;
 }
 #price-sale-text{
     font-weight: 900;
@@ -624,8 +574,6 @@
             <input type="hidden" name="properties[_pdp-size]" id="final-size">
             <input type="hidden" name="properties[_pdp-color]" id="final-color">
             <input type="hidden" name="properties[_pdp-variant-id]" id="final-variant-id">
-            <input type="hidden" name="properties[_pdp-mirror-mode]" id="mirror-mode-data" value="false">
-            <input type="hidden" name="properties[_pdp-print-on-side]" id="print-on-side-data" value="true">
             
             <input type="hidden" name="properties[_pdp-img-tag]" id="final-upscale-tag">
             <input type="hidden" name="properties[_pdp-allow-upscale]" id="final-upscale">
@@ -670,6 +618,10 @@
                   </div>
                 </div>
                 <div class="edit-right-tool-wrap">
+                  <div class="reset-pdp">
+                    <span class="svg-wrapper">
+                                {{- 'icon-remove.svg' | inline_asset_content -}}
+                              </span></div>
                   <div class="toggle-3d-wrap">
                   <span class="toggle-label">3D view</span>
                   <label class="switch">
@@ -677,34 +629,12 @@
                     <span class="slider"></span>
                   </label>
                 </div>
-                  <div class="mirror-mode-wrap">
-                    <button
-                      type="button"
-                      class="mirror-mode-toggle"
-                      id="mirror-mode-toggle"
-                      aria-pressed="false"
-                    >
-                      Mirror edges off
-                    </button>
-                    <p class="mirror-mode-hint">Preview mirrored side walls like Printify canvas wraps.</p>
-                  </div>
-                  <div class="mirror-mode-wrap">
-                    <button
-                      type="button"
-                      class="mirror-mode-toggle"
-                      id="print-on-side-toggle"
-                      aria-pressed="true"
-                    >
-                      Print on side on
-                    </button>
-                    <p class="mirror-mode-hint">Hide artwork on the wrapped side area without changing image placement.</p>
-                  </div>
-                  <div class="mode-btn edit active">
+                  <div class="mode-btn edit active tag">
                     Design
                   </div>
-                  <div class="mode-btn preview" id="preview-popup"> 
+                  {% comment %} <div class="mode-btn preview" id="preview-popup"> 
                     Mockup
-                  </div>
+                  </div> {% endcomment %}
                 </div>
 {% comment %} <div class="frm-info-wrap">
                 <div class="frm-info-item-new">
@@ -754,6 +684,9 @@
 </svg>
 
                     </div>
+                  </div>
+                  <div class="divider hide-wrap" id="divider-line">
+                    
                   </div>
                   <div class="canvas-panel right-panel hide-wrap">
                     <div class="preview-wrap">
@@ -1554,7 +1487,7 @@ Landscape</span>
 <path d="M9.62043 16.2721C13.0771 16.2721 15.8893 13.4599 15.8893 10.0032C15.8893 6.54659 13.0771 3.73438 9.62043 3.73438C6.16378 3.73438 3.35156 6.54659 3.35156 10.0032C3.35156 13.4599 6.16378 16.2721 9.62043 16.2721ZM9.62043 5.40607C12.1551 5.40607 14.2176 7.46853 14.2176 10.0032C14.2176 12.538 12.1551 14.6004 9.62043 14.6004C7.08572 14.6004 5.02326 12.538 5.02326 10.0032C5.02326 7.46853 7.08572 5.40607 9.62043 5.40607Z" fill="#33FF00"/>
 </svg>
 </span> 
-   <p style="display: flex; align-items: center;  gap:5px;"> We Guarantee <strong><span class="info-white">300+ DPI </span></strong>High-Resolution Prints.</p>
+   <p style="display: flex; align-items: center;  gap:5px;"> We Guarantee High-Resolution Prints.</p>
   </div>
 
   <!-- Orange Box -->
@@ -2252,7 +2185,7 @@ Landscape</span>
   <div class="{% if customer %}price-right-section {% else %}price-right-section not-access{% endif %}">
       <div class="save-box"><p class="save-box-text">Save <span id="save-pr-text"></span></p></div>
       <div class="pdp-btn-wrap">
-        <div class="boost-img-btn" style="display: none; pointer-events: none;">Change Image</div>
+        <div class="boost-img-btn" style="display: none; pointer-events: none;">Zoom Out Image</div>
         <div class="image-conform-btn">Add to cart</div>                
       </div>
       <div class="pdp-soldout-wrap hidden">
@@ -2476,6 +2409,23 @@ Landscape</span>
 </product-info>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+<script>
+  // Fix: Fabric.js caches canvas offset at init time.
+  // When a touch/mouse drag starts outside the canvas and enters it,
+  // the stale offset causes the image and canvas to desync.
+  // Patch _initEventListeners so every canvas instance auto-recalculates
+  // its offset on scroll, resize, and touchstart.
+  if (window.fabric) {
+    var _origInitEventListeners = fabric.Canvas.prototype._initEventListeners;
+    fabric.Canvas.prototype._initEventListeners = function() {
+      _origInitEventListeners.call(this);
+      var canvas = this;
+      window.addEventListener('scroll', function() { canvas.calcOffset(); }, { passive: true });
+      window.addEventListener('resize', function() { canvas.calcOffset(); });
+      document.addEventListener('touchstart', function() { canvas.calcOffset(); }, { passive: true });
+    };
+  }
+</script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
 
@@ -2765,7 +2715,8 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
-{{ 'LIVEp2p.js' | asset_url | script_tag }}
+{{ 'canvas-pdp-v4.js' | asset_url | script_tag }}
+{{ 'pdp-canvas-zoom.js' | asset_url | script_tag }}
 <script>
 function openCity(evt, cityName) {
   var i, tabcontent, tablinks;
@@ -2816,18 +2767,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  const resetBtn = document.querySelector(".reset-pdp");
+  const resetBtns = document.querySelectorAll(".reset-pdp");
 
-  if (!resetBtn) return;
+  if (!resetBtns.length) return;
 
-  resetBtn.addEventListener("click", function () {
-    const url = new URL(window.location.href);
+  resetBtns.forEach(function (resetBtn) {
+    resetBtn.addEventListener("click", function () {
+      const url = new URL(window.location.href);
 
-    // Remove sync-related params
-    url.searchParams.delete("syncimage");
-    url.searchParams.delete("syncMode");
-    localStorage.removeItem("pdpUploadedImage");
-    window.location.href = url.pathname + url.search;
+      // Remove sync-related params
+      url.searchParams.delete("syncimage");
+      url.searchParams.delete("syncMode");
+
+      localStorage.removeItem("pdpUploadedImage");
+
+      window.location.href = url.pathname + url.search;
+    });
   });
 });
 </script>
