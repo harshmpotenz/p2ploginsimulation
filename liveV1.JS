@@ -1,5 +1,15 @@
 const canvas = new fabric.Canvas("image-canvas");
 
+// Fix: recalculate canvas offset before every interaction.
+// When a touch/mouse gesture starts outside the canvas and enters it,
+// Fabric.js uses a stale cached offset causing the image to desync.
+(function () {
+  function recalc() { canvas.calcOffset(); }
+  window.addEventListener('scroll', recalc, { passive: true });
+  window.addEventListener('resize', recalc, { passive: true });
+  document.addEventListener('touchstart', recalc, { passive: true });
+  document.addEventListener('mousedown', recalc);
+})();
 
 const appState = {
   outerMargin: 0,
